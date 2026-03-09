@@ -1,0 +1,76 @@
+/* Global styles: Joshua Brain design system */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: #0c0c0e;
+    color: #f2f2f3;
+    overflow: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2a2a30;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a3a42;
+  }
+}
+
+@layer components {
+  .stat-number {
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  .glass-card {
+    background: rgba(19, 19, 22, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(30, 30, 35, 0.6);
+  }
+
+  .accent-glow {
+    box-shadow: 0 0 20px rgba(184, 249, 74, 0.15);
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      #131316 0%,
+      #1a1a1f 50%,
+      #131316 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+}
