@@ -105,6 +105,8 @@ export interface AiTaskLog {
   task_type: string;
   input_summary: string;
   output_summary: string;
+  agent_name: string;
+  status: string;
   created_at: string;
 }
 
@@ -150,7 +152,7 @@ export interface ContentResearchItem {
   created_at: string;
 }
 
-export type SopCategory = 'Content' | 'Sales' | 'Operations' | 'Training' | 'Tech';
+export type SopCategory = 'Content' | 'Sales' | 'Operations' | 'Training' | 'Tech' | 'Sonstiges';
 
 export interface SopDocument {
   id: string;
@@ -159,4 +161,31 @@ export interface SopDocument {
   description: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface ResearchItem {
+  id: string;
+  title: string;
+  hook_type: string;
+  platform: 'instagram' | 'tiktok' | 'youtube';
+  status: 'new' | 'in_pipeline' | 'done';
+  created_at: string;
+}
+
+export interface Attribution {
+  id: string;
+  lead_name: string;
+  channel: string;
+  content_title: string;
+  revenue: number;
+  date: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface AgentInfo {
+  name: string;
+  role: string;
+  status: 'Active' | 'Standby' | 'Building';
+  lastTask: string;
 }
