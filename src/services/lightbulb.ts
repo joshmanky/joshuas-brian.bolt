@@ -48,6 +48,23 @@ export async function saveLightbulbEdition(edition: {
     .insert(edition)
     .select()
     .maybeSingle();
+
+  if (data) {
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      await supabase.from('brain_documents').insert({
+        filename: `${edition.title} (${today})`,
+        category: 'lightbulb',
+        file_path: '',
+        extracted_quotes: [],
+        extracted_insights: [edition.content.slice(0, 500)],
+        full_text: edition.content,
+      });
+    } catch {
+      // silent - brain sync should not break save flow
+    }
+  }
+
   return data as LightbulbEdition | null;
 }
 

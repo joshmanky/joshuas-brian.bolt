@@ -1,5 +1,5 @@
-// CommandCenter: main dashboard with KPIs, live feed, quick actions, AI insight — added AI task logging
-import { useState, useEffect } from 'react';
+// CommandCenter: data-driven dashboard with real AI insight using actual post data
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, FileText, Heart, Trophy, Zap, Sparkles, BarChart3, Plus,
@@ -10,6 +10,7 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { supabase } from '../lib/supabase';
 import { callClaude, logAiTask } from '../services/claude';
+import { fetchTopPerformanceData, buildPerformanceContext } from '../services/performanceData';
 import { formatNumber, formatTimeAgo, getPlatformTextColor } from '../lib/utils';
 
 interface FeedItem {
@@ -87,12 +88,21 @@ export default function CommandCenter() {
     }
   }
 
+  const insightTriggered = useRef(false);
+
   const loadInsight = async () => {
     setInsightLoading(true);
     try {
-      const summary = `Followers gesamt: ${totalFollowers}. Posts diese Woche: ${postsThisWeek}. Avg Likes: ${avgLikes}. Beste Plattform: ${bestPlatform}. AI Tasks: ${aiTaskCount}.`;
+      const perfData = await fetchTopPerformanceData();
+      const perfContext = buildPerformanceContext(perfData);
+
+      const summary = [
+        `Followers gesamt: ${totalFollowers}. Posts diese Woche: ${postsThisWeek}. Avg Likes: ${avgLikes}. Beste Plattform: ${bestPlatform}.`,
+        perfContext ? `\n--- TOP CONTENT DATEN ---\n${perfContext}\n--- ENDE ---` : '',
+      ].join('');
+
       const result = await callClaude(
-        'Du bist ein Social Media Stratege. Gib EINEN konkreten, actionable Tipp basierend auf den folgenden Daten. Max 2 Saetze. Deutsch.',
+        'Du bist Joshua Tischers persoenlicher Performance-Analyst. Analysiere seine Plattform-Daten und gib einen konkreten, datenbasierten Handlungstipp. Nenne konkrete Zahlen. Max 3 Saetze. Deutsch. Kein Motivations-Bullshit.',
         summary
       );
       await logAiTask('Dashboard Insight Agent', 'dashboard_insight', result);
@@ -105,7 +115,10 @@ export default function CommandCenter() {
   };
 
   useEffect(() => {
-    if (!loading && totalFollowers > 0) loadInsight();
+    if (!loading && totalFollowers > 0 && !insightTriggered.current) {
+      insightTriggered.current = true;
+      loadInsight();
+    }
   }, [loading]);
 
   const getPlatformIcon = (platform: string) => {

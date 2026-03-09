@@ -57,14 +57,14 @@ export async function generateResearchIdeas(): Promise<ResearchItem[]> {
     .map((p, i) => `${i + 1}. "${(p.caption || '').slice(0, 120)}" (${p.like_count} Likes, ${p.media_type})`)
     .join('\n');
 
-  const systemPrompt = `Du bist Joshua Tischer's Content Stratege. Analysiere die Top 5 Instagram Posts nach Likes und generiere 6 neue Video-Ideen fuer Instagram Reels. Jede Idee hat: Titel (max 8 Worte), Hook-Typ (Identitaet/Frage/Zahlen/Kontrast/Statement), Plattform-Tag. Antworte NUR als JSON array mit Feldern: title, hook_type, platform.`;
+  const systemPrompt = `Du bist Joshua Tischer's Content Research Agent. Analysiere seine Top-Posts und generiere 6 neue Reel-Ideen die auf denselben psychologischen Mustern basieren. JSON format: [{"title": "...", "hook_type": "...", "platform": "instagram", "reason": "..."}] wobei reason erklaert warum diese Idee basierend auf seinen Top-Posts funktionieren wird. Hook-Typen: Identitaet, Frage, Zahlen, Kontrast, Statement. Antworte NUR als JSON array.`;
 
   const userMessage = postsContext
-    ? `Hier sind die Top 5 Instagram Posts:\n${postsContext}\n\nGeneriere 6 neue Video-Ideen basierend auf diesen Top-Performern.`
-    : `Generiere 6 Video-Ideen fuer Instagram Reels in den Nischen: Network Marketing, Mindset, Financial Freedom, Trading, Personal Development.`;
+    ? `Top performing posts von @joshmanky:\n${postsContext}\n\nGeneriere 6 neue Video-Ideen die auf denselben psychologischen Mustern basieren. Erklaere bei jeder Idee WARUM sie funktionieren wird.`
+    : `Generiere 6 Video-Ideen fuer Instagram Reels in den Nischen: Network Marketing, Mindset, Financial Freedom, Trading, Personal Development. Erklaere bei jeder Idee den psychologischen Grund.`;
 
   const raw = await callClaude(systemPrompt, userMessage);
-  await logAiTask('Research Agent', 'research_idea_generation', raw);
+  await logAiTask('Content Research Agent', 'research_idea_generation', raw);
 
   const jsonMatch = raw.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return [];
@@ -73,12 +73,16 @@ export async function generateResearchIdeas(): Promise<ResearchItem[]> {
     title: string;
     hook_type: string;
     platform: string;
+    reason?: string;
   }[];
 
   const created: ResearchItem[] = [];
   for (const idea of ideas.slice(0, 6)) {
+    const titleWithReason = idea.reason
+      ? `${idea.title} | ${idea.reason}`
+      : idea.title;
     const item = await createResearchItem({
-      title: idea.title,
+      title: titleWithReason,
       hook_type: idea.hook_type || 'Statement',
       platform: idea.platform || 'instagram',
     });

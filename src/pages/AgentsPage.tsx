@@ -1,9 +1,10 @@
-// AgentsPage: Agent Control — static agent registry + AI task log from Supabase
+// AgentsPage: Agent Control with real system prompts, test buttons, and per-agent task logs
 import { useState, useEffect } from 'react';
-import { Bot, Cpu, Activity, CheckCircle2, Clock, Wrench } from 'lucide-react';
+import { Bot, Cpu, Activity, CheckCircle2, Clock, Wrench, Settings2 } from 'lucide-react';
 import StatCard from '../components/ui/StatCard';
 import Badge from '../components/ui/Badge';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import AgentConfigPanel from '../components/agents/AgentConfigPanel';
 import { AGENT_REGISTRY, getAiTaskLogs } from '../services/agents';
 import { formatTimeAgo } from '../lib/utils';
 import type { AiTaskLog } from '../types';
@@ -61,12 +62,7 @@ export default function AgentsPage() {
         <StatCard label="Total Agents" value={AGENT_REGISTRY.length} icon={<Bot size={15} />} />
         <StatCard label="Active Agents" value={activeAgents} icon={<Activity size={15} />} />
         <StatCard label="AI Tasks" value={completedTasks} icon={<CheckCircle2 size={15} />} />
-        <StatCard
-          label="System Status"
-          value="Online"
-          icon={<Activity size={15} />}
-          accent
-        />
+        <StatCard label="System Status" value="Online" icon={<Activity size={15} />} accent />
       </div>
 
       <div>
@@ -94,6 +90,17 @@ export default function AgentsPage() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-sm font-semibold text-jb-text mb-3 flex items-center gap-2">
+          <Settings2 size={14} className="text-jb-accent" /> Agent Konfiguration
+        </h3>
+        <div className="space-y-2">
+          {AGENT_REGISTRY.map((agent) => (
+            <AgentConfigPanel key={agent.name} agent={agent} />
+          ))}
         </div>
       </div>
 

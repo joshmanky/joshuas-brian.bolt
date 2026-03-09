@@ -1,10 +1,11 @@
-// ScriptGeneratorPage: AI script generator using Claude with 5-phase structure — added AI task logging
-import { useState } from 'react';
-import { Sparkles, Copy, Check, Plus, Wand2 } from 'lucide-react';
+// ScriptGeneratorPage: data-aware AI script generator — fetches real performance data before Claude call
+import { useState, useEffect } from 'react';
+import { Sparkles, Copy, Check, Plus, Wand2, TrendingUp } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
 import { callClaude, logAiTask, SCRIPT_SYSTEM_PROMPT } from '../services/claude';
 import { createCard } from '../services/pipeline';
+import { fetchTopPerformanceData, buildPerformanceContext } from '../services/performanceData';
 import { HOOK_TYPE_LABELS } from '../types';
 import type { HookType } from '../types';
 
@@ -28,6 +29,17 @@ export default function ScriptGeneratorPage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [savedToPipeline, setSavedToPipeline] = useState(false);
+  const [perfContext, setPerfContext] = useState('');
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchTopPerformanceData()
+      .then((data) => {
+        setPerfContext(buildPerformanceContext(data));
+        setDataLoaded(true);
+      })
+      .catch(() => setDataLoaded(true));
+  }, []);
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
@@ -40,7 +52,13 @@ export default function ScriptGeneratorPage() {
     try {
       const platformLabel = PLATFORM_OPTIONS.find((p) => p.value === platform)?.label || platform;
       const hookLabel = HOOK_TYPE_LABELS[hookType];
-      const userMessage = `Erstelle ein virales ${platformLabel} Skript zum Thema: "${topic}". Verwende einen ${hookLabel}. Formatiere klar mit den 5 Phasen: Hook, Situation, Emotion, Mehrwert/Loesung, CTA.`;
+
+      let userMessage = '';
+      if (perfContext) {
+        userMessage += `--- PERFORMANCE-DATEN ---\n${perfContext}\n--- ENDE PERFORMANCE-DATEN ---\n\n`;
+      }
+      userMessage += `Erstelle ein virales ${platformLabel} Skript zum Thema: "${topic}". Verwende einen ${hookLabel}. Formatiere klar mit den 5 Phasen: Hook, Situation, Emotion, Mehrwert/Loesung, CTA.`;
+
       const result = await callClaude(SCRIPT_SYSTEM_PROMPT, userMessage);
       await logAiTask('Script Generation Agent', 'script_generation', result);
       setScript(result);
@@ -76,9 +94,21 @@ export default function ScriptGeneratorPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-jb-text">AI Script Generator</h1>
-          <p className="text-sm text-jb-text-secondary">Virale Skripte mit KI generieren</p>
+          <p className="text-sm text-jb-text-secondary">Datenbasierte Skripte mit KI generieren</p>
         </div>
       </div>
+
+      {dataLoaded && perfContext && (
+        <div className="bg-jb-success/5 border border-jb-success/20 rounded-xl p-4 flex items-start gap-3">
+          <TrendingUp size={16} className="text-jb-success mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-xs font-medium text-jb-success mb-1">Performance-Daten geladen</p>
+            <p className="text-xs text-jb-text-secondary leading-relaxed">
+              Deine Top-Posts werden automatisch analysiert und in die Skript-Generierung einbezogen.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="bg-jb-card border border-jb-border rounded-xl p-6 space-y-4">
         <div>

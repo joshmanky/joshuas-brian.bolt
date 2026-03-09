@@ -1,10 +1,11 @@
-// AnalyticsPage: cross-platform performance analytics with charts
-import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp } from 'lucide-react';
+// AnalyticsPage: cross-platform analytics with AI hook insight card
+import { useState, useEffect, useRef } from 'react';
+import { BarChart3, TrendingUp, Sparkles } from 'lucide-react';
 import StatCard from '../components/ui/StatCard';
 import SimpleBarChart from '../components/charts/SimpleBarChart';
 import SimpleLineChart from '../components/charts/SimpleLineChart';
 import { supabase } from '../lib/supabase';
+import { callClaude, logAiTask } from '../services/claude';
 import { formatNumber, average, detectHookType } from '../lib/utils';
 
 export default function AnalyticsPage() {
@@ -18,6 +19,9 @@ export default function AnalyticsPage() {
   const [hookPerformance, setHookPerformance] = useState<{ name: string; value: number }[]>([]);
   const [weeklyPosts, setWeeklyPosts] = useState<{ name: string; value: number }[]>([]);
   const [contentTypeData, setContentTypeData] = useState<{ name: string; value: number; color: string }[]>([]);
+  const [hookInsight, setHookInsight] = useState('');
+  const [hookInsightLoading, setHookInsightLoading] = useState(false);
+  const hookInsightTriggered = useRef(false);
 
   useEffect(() => {
     loadAnalytics();
@@ -109,6 +113,32 @@ export default function AnalyticsPage() {
     }
   }
 
+  useEffect(() => {
+    if (!loading && hookPerformance.length > 0 && !hookInsightTriggered.current) {
+      hookInsightTriggered.current = true;
+      loadHookInsight();
+    }
+  }, [loading, hookPerformance]);
+
+  async function loadHookInsight() {
+    setHookInsightLoading(true);
+    try {
+      const hookSummary = hookPerformance
+        .map((h) => `${h.name}: durchschnittlich ${h.value} Likes`)
+        .join(', ');
+      const result = await callClaude(
+        'Du bist ein Analytics Agent. Analysiere die Hook-Typ Performance-Daten und gib EINEN Satz als Empfehlung. Format: "Dein bester Hook-Typ ist X mit durchschnittlich Y Likes. Erstelle mehr davon." Deutsch. Nur ein Satz.',
+        `Hook-Typ Performance: ${hookSummary}`
+      );
+      await logAiTask('Analytics Agent', 'hook_insight', result);
+      setHookInsight(result);
+    } catch {
+      setHookInsight('');
+    } finally {
+      setHookInsightLoading(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -179,6 +209,22 @@ export default function AnalyticsPage() {
           </div>
         )}
       </div>
+
+      {(hookInsight || hookInsightLoading) && (
+        <div className="bg-jb-card border border-jb-accent/20 rounded-xl p-5 accent-glow">
+          <h3 className="text-sm font-semibold text-jb-accent mb-3 flex items-center gap-2">
+            <Sparkles size={14} /> Best Hook Insight
+          </h3>
+          {hookInsightLoading ? (
+            <div className="flex items-center gap-2 py-1">
+              <div className="w-3 h-3 border-2 border-jb-accent border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs text-jb-text-muted">Analysiere Hook-Performance...</span>
+            </div>
+          ) : (
+            <p className="text-sm text-jb-text leading-relaxed">{hookInsight}</p>
+          )}
+        </div>
+      )}
 
       {weeklyPosts.length > 0 && (
         <div className="bg-jb-card border border-jb-border rounded-xl p-5">

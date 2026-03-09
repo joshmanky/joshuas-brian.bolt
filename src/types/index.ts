@@ -188,4 +188,6 @@ export interface AgentInfo {
   role: string;
   status: 'Active' | 'Standby' | 'Building';
   lastTask: string;
+  systemPrompt: string;
+  testMessage: string;
 }

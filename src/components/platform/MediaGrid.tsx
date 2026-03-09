@@ -1,5 +1,5 @@
-// MediaGrid: reusable grid for displaying social media posts/videos
-import { Heart, MessageCircle, Eye, Share2, Trophy } from 'lucide-react';
+// MediaGrid: reusable grid with optional viral score badges for Instagram posts
+import { Heart, MessageCircle, Eye, Share2, Trophy, TrendingUp } from 'lucide-react';
 import Badge from '../ui/Badge';
 import { formatNumber } from '../../lib/utils';
 
@@ -19,6 +19,19 @@ interface MediaItem {
   media_type?: string;
   isBest?: boolean;
   engagementRate?: string;
+  viralScore?: number;
+}
+
+function getViralScoreBadge(score: number | undefined) {
+  if (score === undefined) return null;
+  let color = 'bg-red-500/15 text-red-400';
+  if (score >= 150) color = 'bg-emerald-500/15 text-emerald-400';
+  else if (score >= 80) color = 'bg-amber-500/15 text-amber-400';
+  return (
+    <Badge color={color}>
+      <TrendingUp size={9} className="mr-0.5" /> {score}
+    </Badge>
+  );
 }
 
 interface MediaGridProps {
@@ -71,6 +84,11 @@ export default function MediaGrid({ items, platform }: MediaGridProps) {
                   </Badge>
                 )}
               </div>
+              {item.viralScore !== undefined && (
+                <div className="absolute top-2 right-2">
+                  {getViralScoreBadge(item.viralScore)}
+                </div>
+              )}
               {item.engagementRate && (
                 <div className="absolute bottom-2 right-2">
                   <Badge color="bg-black/60 text-white backdrop-blur-sm">{item.engagementRate}%</Badge>

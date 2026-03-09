@@ -1,4 +1,4 @@
-// InstagramPage: Instagram analytics with profile stats, media grid, hook analysis
+// InstagramPage: Instagram analytics with profile stats, media grid, hook analysis, viral scores
 import { useState, useEffect, useCallback } from 'react';
 import { Instagram, Users, Image, Heart, MessageCircle, BarChart3, Clock } from 'lucide-react';
 import StatCard from '../components/ui/StatCard';
@@ -71,6 +71,8 @@ export default function InstagramPage() {
   }, {});
   const dayData = dayNames.map((d) => ({ name: d, value: dayCounts[d] || 0 }));
 
+  const allAvgLikes = average(posts.map((p) => p.like_count));
+
   const mediaItems = posts.map((p) => ({
     id: p.id,
     thumbnail_url: p.thumbnail_url || p.media_url,
@@ -80,6 +82,7 @@ export default function InstagramPage() {
     comments_count: p.comments_count,
     media_type: p.media_type,
     isBest: bestPost?.id === p.id,
+    viralScore: allAvgLikes > 0 ? Math.min(999, Math.round((p.like_count / allAvgLikes) * 100)) : undefined,
   }));
 
   if (initialLoad) {
