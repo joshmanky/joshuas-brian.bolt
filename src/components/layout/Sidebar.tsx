@@ -34,6 +34,7 @@ const NAV_ITEMS = [
   { to: '/youtube', icon: Youtube, label: 'YouTube' },
   { to: '/pipeline', icon: Kanban, label: 'Pipeline' },
   { to: '/script-generator', icon: Sparkles, label: 'Script Generator' },
+  { to: '/lightbulb', icon: Lightbulb, label: 'Lightbulb Lab' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/research', icon: Search, label: 'Research' },
   { to: '/agents', icon: Cpu, label: 'Agents' },

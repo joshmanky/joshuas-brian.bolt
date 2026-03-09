@@ -1,4 +1,4 @@
-// App: root component with router setup — added Research, SOPs, Agents, Attribution pages
+// App: root component with router setup — added Lightbulb Lab page
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import CommandCenter from './pages/CommandCenter';
@@ -7,6 +7,7 @@ import TikTokPage from './pages/TikTokPage';
 import YouTubePage from './pages/YouTubePage';
 import PipelinePage from './pages/PipelinePage';
 import ScriptGeneratorPage from './pages/ScriptGeneratorPage';
+import LightbulbLabPage from './pages/LightbulbLabPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import ResearchPage from './pages/ResearchPage';
 import AgentsPage from './pages/AgentsPage';
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/youtube" element={<YouTubePage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/script-generator" element={<ScriptGeneratorPage />} />
+          <Route path="/lightbulb" element={<LightbulbLabPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/research" element={<ResearchPage />} />
           <Route path="/agents" element={<AgentsPage />} />
