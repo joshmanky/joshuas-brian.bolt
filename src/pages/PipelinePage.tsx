@@ -1,4 +1,4 @@
-// PipelinePage: Kanban board with drag-and-drop content pipeline
+// PipelinePage: Kanban board with drag-and-drop content pipeline — added AI task logging
 import { useState, useEffect, useCallback } from 'react';
 import { DndContext, DragOverlay, closestCorners, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
@@ -11,7 +11,7 @@ import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { getAllCards, createCard, deleteCard, moveCard, updateCard } from '../services/pipeline';
-import { callClaude, SCRIPT_SYSTEM_PROMPT } from '../services/claude';
+import { callClaude, logAiTask, SCRIPT_SYSTEM_PROMPT } from '../services/claude';
 import { PIPELINE_COLUMNS, HOOK_TYPE_LABELS, PLATFORM_OPTIONS } from '../types';
 import type { PipelineCard, PipelineStatus, HookType } from '../types';
 
@@ -62,6 +62,7 @@ export default function PipelinePage() {
       const hookLabel = HOOK_TYPE_LABELS[card.hook_type as HookType] || card.hook_type;
       const userMessage = `Erstelle ein virales Skript zum Thema: "${card.title}". Verwende einen ${hookLabel}. Formatiere klar mit den 5 Phasen: Hook, Situation, Emotion, Mehrwert/Loesung, CTA.`;
       const result = await callClaude(SCRIPT_SYSTEM_PROMPT, userMessage);
+      await logAiTask('Pipeline Script Agent', 'pipeline_script_generation', result);
       await updateCard(card.id, { script_content: result, status: 'skript_fertig' });
       loadCards();
     } catch {

@@ -1,9 +1,9 @@
-// ScriptGeneratorPage: AI script generator using Claude with 5-phase structure
+// ScriptGeneratorPage: AI script generator using Claude with 5-phase structure — added AI task logging
 import { useState } from 'react';
 import { Sparkles, Copy, Check, Plus, Wand2 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
-import { callClaude, SCRIPT_SYSTEM_PROMPT } from '../services/claude';
+import { callClaude, logAiTask, SCRIPT_SYSTEM_PROMPT } from '../services/claude';
 import { createCard } from '../services/pipeline';
 import { HOOK_TYPE_LABELS } from '../types';
 import type { HookType } from '../types';
@@ -42,6 +42,7 @@ export default function ScriptGeneratorPage() {
       const hookLabel = HOOK_TYPE_LABELS[hookType];
       const userMessage = `Erstelle ein virales ${platformLabel} Skript zum Thema: "${topic}". Verwende einen ${hookLabel}. Formatiere klar mit den 5 Phasen: Hook, Situation, Emotion, Mehrwert/Loesung, CTA.`;
       const result = await callClaude(SCRIPT_SYSTEM_PROMPT, userMessage);
+      await logAiTask('Script Generation Agent', 'script_generation', result);
       setScript(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Fehler bei der Generierung');

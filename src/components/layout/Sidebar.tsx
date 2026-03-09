@@ -1,4 +1,4 @@
-// Sidebar: main navigation with collapsible menu — added Research, Agents, Attribution, SOPs routes
+// Sidebar: main navigation — removed duplicate Content Research, Cross Analytics, SOP Library
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -14,7 +14,6 @@ import {
   ChevronRight,
   Zap,
   Lightbulb,
-  TrendingUp,
   BookOpen,
   Cpu,
   Target,
@@ -39,11 +38,8 @@ const NAV_ITEMS = [
   { to: '/research', icon: Search, label: 'Research' },
   { to: '/agents', icon: Cpu, label: 'Agents' },
   { to: '/attribution', icon: Target, label: 'Attribution' },
-  { to: '/content-research', icon: Lightbulb, label: 'Content Research' },
-  { to: '/cross-analytics', icon: TrendingUp, label: 'Cross Analytics' },
   { to: '/brain', icon: Brain, label: 'Joshua Brain' },
   { to: '/sops', icon: BookOpen, label: 'SOPs' },
-  { to: '/sop-library', icon: BookOpen, label: 'SOP Library' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 

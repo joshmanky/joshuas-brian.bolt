@@ -1,6 +1,6 @@
-// Content Research service: CRUD for research items + AI idea generation
+// Content Research service: CRUD for research items + AI idea generation — added AI task logging
 import { supabase } from '../lib/supabase';
-import { callClaude } from './claude';
+import { callClaude, logAiTask } from './claude';
 import type { ContentResearchItem, ResearchStatus } from '../types';
 
 export async function getAllResearchItems(): Promise<ContentResearchItem[]> {
@@ -68,6 +68,7 @@ export async function generateAiIdeas(): Promise<ContentResearchItem[]> {
     : `Generiere 5 frische, virale Video-Ideen fuer die Nischen Network Marketing, Mindset, Financial Freedom, Trading und Personal Development.`;
 
   const raw = await callClaude(systemPrompt, userMessage);
+  await logAiTask('Content Research Agent', 'content_research_generation', raw);
 
   const jsonMatch = raw.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return [];

@@ -1,6 +1,6 @@
-// Lightbulb service: CRUD for lightbulb_editions + Claude generation
+// Lightbulb service: CRUD for lightbulb_editions + Claude generation — added AI task logging
 import { supabase } from '../lib/supabase';
-import { callClaude } from './claude';
+import { callClaude, logAiTask } from './claude';
 
 export interface LightbulbEdition {
   id: string;
@@ -31,7 +31,9 @@ export async function generateLightbulb(
   kategorie: string
 ): Promise<string> {
   const userMessage = `Thema: ${thema}. Quelle: ${quelle}. Gedanke/Zitat: ${gedanke}. Kategorie: ${kategorie}.`;
-  return callClaude(LIGHTBULB_SYSTEM_PROMPT, userMessage);
+  const result = await callClaude(LIGHTBULB_SYSTEM_PROMPT, userMessage);
+  await logAiTask('Lightbulb Lab Agent', 'lightbulb_generation', result);
+  return result;
 }
 
 export async function saveLightbulbEdition(edition: {

@@ -1,6 +1,6 @@
-// Research service: CRUD for research_items + AI idea generation via Claude
+// Research service: CRUD for research_items + AI idea generation via Claude — added AI task logging
 import { supabase } from '../lib/supabase';
-import { callClaude } from './claude';
+import { callClaude, logAiTask } from './claude';
 import type { ResearchItem } from '../types';
 
 export async function getAllResearchItems(): Promise<ResearchItem[]> {
@@ -64,6 +64,7 @@ export async function generateResearchIdeas(): Promise<ResearchItem[]> {
     : `Generiere 6 Video-Ideen fuer Instagram Reels in den Nischen: Network Marketing, Mindset, Financial Freedom, Trading, Personal Development.`;
 
   const raw = await callClaude(systemPrompt, userMessage);
+  await logAiTask('Research Agent', 'research_idea_generation', raw);
 
   const jsonMatch = raw.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return [];

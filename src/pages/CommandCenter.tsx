@@ -1,4 +1,4 @@
-// CommandCenter: main dashboard with KPIs, live feed, quick actions, AI insight
+// CommandCenter: main dashboard with KPIs, live feed, quick actions, AI insight — added AI task logging
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -9,7 +9,7 @@ import StatCard from '../components/ui/StatCard';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { supabase } from '../lib/supabase';
-import { callClaude } from '../services/claude';
+import { callClaude, logAiTask } from '../services/claude';
 import { formatNumber, formatTimeAgo, getPlatformTextColor } from '../lib/utils';
 
 interface FeedItem {
@@ -95,6 +95,7 @@ export default function CommandCenter() {
         'Du bist ein Social Media Stratege. Gib EINEN konkreten, actionable Tipp basierend auf den folgenden Daten. Max 2 Saetze. Deutsch.',
         summary
       );
+      await logAiTask('Dashboard Insight Agent', 'dashboard_insight', result);
       setInsight(result);
     } catch {
       setInsight('AI Insight konnte nicht geladen werden. Bitte Claude API Key in Settings hinterlegen.');

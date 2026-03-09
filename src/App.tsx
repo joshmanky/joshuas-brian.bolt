@@ -1,4 +1,4 @@
-// App: root component with router setup — added Lightbulb Lab page
+// App: root component with router setup — removed duplicate pages (content-research, cross-analytics, sop-library)
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import CommandCenter from './pages/CommandCenter';
@@ -12,11 +12,8 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import ResearchPage from './pages/ResearchPage';
 import AgentsPage from './pages/AgentsPage';
 import AttributionPage from './pages/AttributionPage';
-import ContentResearchPage from './pages/ContentResearchPage';
-import CrossPlatformAnalyticsPage from './pages/CrossPlatformAnalyticsPage';
 import BrainPage from './pages/BrainPage';
 import SopsPage from './pages/SopsPage';
-import SopLibraryPage from './pages/SopLibraryPage';
 import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
@@ -35,11 +32,8 @@ export default function App() {
           <Route path="/research" element={<ResearchPage />} />
           <Route path="/agents" element={<AgentsPage />} />
           <Route path="/attribution" element={<AttributionPage />} />
-          <Route path="/content-research" element={<ContentResearchPage />} />
-          <Route path="/cross-analytics" element={<CrossPlatformAnalyticsPage />} />
           <Route path="/brain" element={<BrainPage />} />
           <Route path="/sops" element={<SopsPage />} />
-          <Route path="/sop-library" element={<SopLibraryPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>

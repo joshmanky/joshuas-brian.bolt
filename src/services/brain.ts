@@ -1,6 +1,6 @@
-// Brain service: upload documents, extract insights, search content
+// Brain service: upload documents, extract insights, search content — added AI task logging
 import { supabase } from '../lib/supabase';
-import { callClaude } from './claude';
+import { callClaude, logAiTask } from './claude';
 import type { BrainDocument } from '../types';
 
 export async function getAllDocuments(): Promise<BrainDocument[]> {
@@ -37,6 +37,7 @@ export async function uploadDocument(
       'Du bist ein Content-Analyst. Extrahiere die 5 besten Zitate und 3 wichtigsten Insights aus dem folgenden Text. Antworte als JSON: {"quotes": ["..."], "insights": ["..."]}. Nur JSON, kein anderer Text.',
       fullText.slice(0, 8000)
     );
+    await logAiTask('Brain Extract Agent', 'document_extraction', extractResult);
     const parsed = JSON.parse(extractResult.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
     quotes = parsed.quotes || [];
     insights = parsed.insights || [];
@@ -76,6 +77,7 @@ export async function searchBrain(query: string): Promise<string> {
     'Du bist ein Wissens-Assistent. Durchsuche den folgenden Content und beantworte die Frage praezise. Zitiere relevante Stellen. Deutsch.',
     `Frage: ${query}\n\nContent:\n${context.slice(0, 12000)}`
   );
+  await logAiTask('Brain Search Agent', 'brain_search', result);
 
   return result;
 }
@@ -94,6 +96,7 @@ export async function generateContentFromBrain(): Promise<string> {
     'Du bist ein Content-Stratege. Basierend auf den folgenden Zitaten und Insights, schlage 5 virale Video-Ideen vor. Jede Idee mit Titel, Hook-Typ und kurzer Beschreibung. Deutsch.',
     `Zitate:\n${allQuotes.join('\n')}\n\nInsights:\n${allInsights.join('\n')}`
   );
+  await logAiTask('Brain Content Agent', 'brain_content_generation', result);
 
   return result;
 }
