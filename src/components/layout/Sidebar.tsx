@@ -13,6 +13,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  Lightbulb,
+  TrendingUp,
+  BookOpen,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,7 +32,10 @@ const NAV_ITEMS = [
   { to: '/pipeline', icon: Kanban, label: 'Pipeline' },
   { to: '/script-generator', icon: Sparkles, label: 'Script Generator' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
+  { to: '/content-research', icon: Lightbulb, label: 'Content Research' },
+  { to: '/cross-analytics', icon: TrendingUp, label: 'Cross Analytics' },
   { to: '/brain', icon: Brain, label: 'Joshua Brain' },
+  { to: '/sop-library', icon: BookOpen, label: 'SOP Library' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 

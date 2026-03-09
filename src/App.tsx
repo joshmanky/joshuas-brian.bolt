@@ -1,4 +1,4 @@
-// App: root component with router setup
+// App: root component with router setup — added Content Research, Cross Analytics, SOP Library
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import CommandCenter from './pages/CommandCenter';
@@ -8,7 +8,10 @@ import YouTubePage from './pages/YouTubePage';
 import PipelinePage from './pages/PipelinePage';
 import ScriptGeneratorPage from './pages/ScriptGeneratorPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import ContentResearchPage from './pages/ContentResearchPage';
+import CrossPlatformAnalyticsPage from './pages/CrossPlatformAnalyticsPage';
 import BrainPage from './pages/BrainPage';
+import SopLibraryPage from './pages/SopLibraryPage';
 import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
@@ -23,7 +26,10 @@ export default function App() {
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/script-generator" element={<ScriptGeneratorPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/content-research" element={<ContentResearchPage />} />
+          <Route path="/cross-analytics" element={<CrossPlatformAnalyticsPage />} />
           <Route path="/brain" element={<BrainPage />} />
+          <Route path="/sop-library" element={<SopLibraryPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>

@@ -137,3 +137,26 @@ export const PLATFORM_OPTIONS = [
   { value: 'tiktok', label: 'TikTok', color: 'bg-jb-tt' },
   { value: 'youtube', label: 'YouTube Short', color: 'bg-jb-yt' },
 ];
+
+export type ResearchStatus = 'New' | 'In Pipeline' | 'Done';
+
+export interface ContentResearchItem {
+  id: string;
+  topic: string;
+  hook_suggestion: string;
+  platform: 'instagram' | 'tiktok' | 'youtube';
+  status: ResearchStatus;
+  source: 'manual' | 'ai_generated' | 'trending';
+  created_at: string;
+}
+
+export type SopCategory = 'Content' | 'Sales' | 'Operations' | 'Training' | 'Tech';
+
+export interface SopDocument {
+  id: string;
+  title: string;
+  category: SopCategory;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
