@@ -1,6 +1,7 @@
 // BrollTab: B-Roll text-set generator + Canva automated workflow (upload, design, export MP4)
+// Fixed: popup blocker handling with fallback link
 import { useState, useEffect } from 'react';
-import { Film, Wand2, Download, CheckCircle2, AlertCircle, Upload } from 'lucide-react';
+import { Film, Wand2, Download, CheckCircle2, AlertCircle, Upload, ExternalLink } from 'lucide-react';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
 import { callClaude, logAiTask } from '../../services/claude';
@@ -38,6 +39,7 @@ export default function BrollTab() {
 
   const [canvaConnected, setCanvaConnected] = useState(false);
   const [checkingCanva, setCheckingCanva] = useState(true);
+  const [popupBlockedUrl, setPopupBlockedUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedText, setSelectedText] = useState('');
   const [format, setFormat] = useState('vertical');
@@ -194,11 +196,36 @@ export default function BrollTab() {
               Trennen
             </button>
           ) : (
-            <Button variant="secondary" size="sm" onClick={() => startCanvaOAuth()}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={async () => {
+                setPopupBlockedUrl(null);
+                const fallbackUrl = await startCanvaOAuth();
+                if (fallbackUrl) setPopupBlockedUrl(fallbackUrl);
+              }}
+            >
               Mit Canva verbinden
             </Button>
           )}
         </div>
+
+        {popupBlockedUrl && !canvaConnected && (
+          <div className="bg-jb-warning/5 border border-jb-warning/20 rounded-lg p-3 space-y-2">
+            <p className="text-xs text-jb-warning font-medium">
+              Popup wurde vom Browser blockiert. Bitte erlaube Popups oder klicke hier:
+            </p>
+            <a
+              href={popupBlockedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-jb-accent hover:underline font-medium"
+            >
+              <ExternalLink size={12} />
+              Canva Autorisierung oeffnen
+            </a>
+          </div>
+        )}
 
         {canvaConnected && (
           <>

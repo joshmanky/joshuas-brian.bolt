@@ -17,12 +17,24 @@ async function generatePKCE(): Promise<{ verifier: string; challenge: string }> 
   return { verifier, challenge };
 }
 
-export async function startCanvaOAuth(): Promise<void> {
+export async function startCanvaOAuth(): Promise<string | null> {
+  console.log('[Canva OAuth] Starting...');
+
+  const popup = window.open('about:blank', 'canva_oauth', 'width=500,height=700,left=200,top=100');
+
   const { verifier, challenge } = await generatePKCE();
   sessionStorage.setItem('canva_code_verifier', verifier);
   const scopes = 'asset:read%20asset:write%20design:content:read%20design:content:write%20design:meta:read%20profile:read';
   const authUrl = `https://www.canva.com/api/oauth/authorize?code_challenge_method=s256&response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${scopes}&code_challenge=${challenge}`;
-  window.open(authUrl, 'canva_oauth', 'width=500,height=700,left=200,top=100');
+
+  if (popup && !popup.closed) {
+    console.log('[Canva OAuth] Popup opened, navigating to:', authUrl);
+    popup.location.href = authUrl;
+    return null;
+  }
+
+  console.warn('[Canva OAuth] Popup blocked by browser, returning fallback URL');
+  return authUrl;
 }
 
 export async function exchangeCanvaCode(code: string): Promise<boolean> {

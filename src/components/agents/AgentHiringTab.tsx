@@ -1,9 +1,10 @@
-// AgentHiringTab: propose, review, test and approve/reject new agents via Claude
+// AgentHiringTab: propose, review, test and approve/reject new agents via Claude + Agent Architect
 import { useState, useEffect } from 'react';
 import { Send, Play, CheckCircle2, XCircle, ChevronDown, ChevronRight, AlertCircle, Copy } from 'lucide-react';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import AgentArchitectSection from './AgentArchitectSection';
 import { supabase } from '../../lib/supabase';
 import { callClaude, logAiTask } from '../../services/claude';
 import { formatDate } from '../../lib/utils';
@@ -163,6 +164,10 @@ export default function AgentHiringTab() {
 
   return (
     <div className="space-y-6">
+      <AgentArchitectSection
+        onProposalAdded={(proposal) => setProposals((prev) => [proposal, ...prev])}
+      />
+
       <div className="bg-jb-card border border-jb-border rounded-xl p-5 space-y-3">
         <label className="block text-xs font-medium text-jb-text-secondary uppercase tracking-wider">
           Was soll dieser Agent tun?
