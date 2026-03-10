@@ -38,15 +38,29 @@ export async function exchangeCanvaCode(code: string, codeVerifier: string): Pro
     body: { code, code_verifier: codeVerifier, redirect_uri: REDIRECT_URI },
   });
   if (error || !data?.access_token) return false;
-  await supabase.from('api_keys').upsert(
-    { platform: 'canva_access_token', key_value: data.access_token },
-    { onConflict: 'platform' }
-  );
-  if (data.refresh_token) {
-    await supabase.from('api_keys').upsert(
-      { platform: 'canva_refresh_token', key_value: data.refresh_token },
-      { onConflict: 'platform' }
+
+  const { error: upsertErr } = await supabase
+    .from('api_keys')
+    .upsert(
+      { platform: 'canva_access_token', key_value: data.access_token },
+      { onConflict: 'platform', ignoreDuplicates: false }
     );
+  if (upsertErr) {
+    await supabase.from('api_keys').delete().eq('platform', 'canva_access_token');
+    await supabase.from('api_keys').insert({ platform: 'canva_access_token', key_value: data.access_token });
+  }
+
+  if (data.refresh_token) {
+    const { error: refreshErr } = await supabase
+      .from('api_keys')
+      .upsert(
+        { platform: 'canva_refresh_token', key_value: data.refresh_token },
+        { onConflict: 'platform', ignoreDuplicates: false }
+      );
+    if (refreshErr) {
+      await supabase.from('api_keys').delete().eq('platform', 'canva_refresh_token');
+      await supabase.from('api_keys').insert({ platform: 'canva_refresh_token', key_value: data.refresh_token });
+    }
   }
   return true;
 }
