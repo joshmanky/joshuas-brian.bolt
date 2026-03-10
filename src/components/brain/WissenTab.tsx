@@ -1,13 +1,14 @@
-// BrainPage: knowledge base with upload, search, and AI content generation
+// WissenTab: knowledge base with upload, search, and AI content generation
 import { useState, useEffect, useRef } from 'react';
-import { Brain, Upload, Search, Sparkles, FileText, Quote, Lightbulb, X } from 'lucide-react';
-import Button from '../components/ui/Button';
-import Select from '../components/ui/Select';
-import Badge from '../components/ui/Badge';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
-import { getAllDocuments, uploadDocument, searchBrain, generateContentFromBrain } from '../services/brain';
-import { formatDate } from '../lib/utils';
-import type { BrainDocument } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { Upload, Search, Sparkles, FileText, Quote, Lightbulb, X, ArrowRight } from 'lucide-react';
+import Button from '../ui/Button';
+import Select from '../ui/Select';
+import Badge from '../ui/Badge';
+import LoadingSpinner from '../ui/LoadingSpinner';
+import { getAllDocuments, uploadDocument, searchBrain, generateContentFromBrain } from '../../services/brain';
+import { formatDate } from '../../lib/utils';
+import type { BrainDocument } from '../../types';
 
 const CATEGORIES = [
   { value: 'Reel Script', label: 'Reel Script' },
@@ -17,10 +18,12 @@ const CATEGORIES = [
   { value: 'Webinar', label: 'Webinar' },
 ];
 
-export default function BrainPage() {
+export default function WissenTab() {
+  const navigate = useNavigate();
   const [documents, setDocuments] = useState<BrainDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [category, setCategory] = useState('Reel Script');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState('');
@@ -43,9 +46,13 @@ export default function BrainPage() {
       return;
     }
     setUploading(true);
+    setUploadSuccess(false);
     try {
       const doc = await uploadDocument(file, category);
-      if (doc) setDocuments((prev) => [doc, ...prev]);
+      if (doc) {
+        setDocuments((prev) => [doc, ...prev]);
+        setUploadSuccess(true);
+      }
     } catch {
       // silent
     } finally {
@@ -83,16 +90,18 @@ export default function BrainPage() {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-jb-accent/10 flex items-center justify-center">
-          <Brain size={20} className="text-jb-accent" />
+    <div className="space-y-4">
+      {uploadSuccess && (
+        <div className="flex items-center justify-between bg-jb-success/10 border border-jb-success/20 rounded-xl px-5 py-3">
+          <p className="text-sm text-jb-success font-medium">Dokument analysiert. Jetzt im Script Generator verwenden?</p>
+          <button
+            onClick={() => navigate('/studio?tab=skript')}
+            className="flex items-center gap-1.5 text-sm font-semibold text-jb-accent hover:text-jb-accent-dim transition-colors"
+          >
+            Script Generator <ArrowRight size={14} />
+          </button>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-jb-text">Joshua Brain</h1>
-          <p className="text-sm text-jb-text-secondary">Knowledge Base — {documents.length} Dokumente</p>
-        </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
@@ -156,7 +165,7 @@ export default function BrainPage() {
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-jb-text">Dokumente</h3>
+          <h3 className="text-sm font-semibold text-jb-text">Dokumente ({documents.length})</h3>
           {documents.length === 0 ? (
             <p className="text-xs text-jb-text-muted py-4 text-center">Noch keine Dokumente hochgeladen.</p>
           ) : (

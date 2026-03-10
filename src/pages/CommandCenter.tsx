@@ -1,17 +1,28 @@
-// CommandCenter: data-driven dashboard with real AI insight using actual post data
+// CommandCenter: CEO Insight + Live Feed + Attribution Quick Entry + Quick Actions
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, FileText, Heart, Trophy, Zap, Sparkles, BarChart3, Plus,
-  Instagram, Music2, Youtube, ArrowRight,
+  Users, FileText, Sparkles, Zap, Brain, Lightbulb, BarChart3,
+  Instagram, Music2, Youtube, RefreshCw, Send,
 } from 'lucide-react';
 import StatCard from '../components/ui/StatCard';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import Select from '../components/ui/Select';
 import { supabase } from '../lib/supabase';
-import { callClaude, logAiTask } from '../services/claude';
-import { fetchTopPerformanceData, buildPerformanceContext } from '../services/performanceData';
+import { runCeoAnalysis, type CeoAnalysis } from '../services/ceoAgent';
+import { createAttribution } from '../services/attribution';
 import { formatNumber, formatTimeAgo, getPlatformTextColor } from '../lib/utils';
+
+const CHANNEL_OPTIONS = [
+  { value: '', label: 'Kanal waehlen...' },
+  { value: 'Instagram DM', label: 'Instagram DM' },
+  { value: 'TikTok', label: 'TikTok' },
+  { value: 'YouTube', label: 'YouTube' },
+  { value: 'Telegram', label: 'Telegram' },
+  { value: 'WhatsApp', label: 'WhatsApp' },
+  { value: 'Email', label: 'Email' },
+];
 
 interface FeedItem {
   id: string;
@@ -24,19 +35,26 @@ interface FeedItem {
 
 export default function CommandCenter() {
   const navigate = useNavigate();
+  const ceoTriggered = useRef(false);
   const [totalFollowers, setTotalFollowers] = useState(0);
   const [postsThisWeek, setPostsThisWeek] = useState(0);
-  const [avgLikes, setAvgLikes] = useState(0);
-  const [bestPlatform, setBestPlatform] = useState('—');
   const [aiTaskCount, setAiTaskCount] = useState(0);
   const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [insight, setInsight] = useState('');
-  const [insightLoading, setInsightLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [ceoAnalysis, setCeoAnalysis] = useState<CeoAnalysis | null>(null);
+  const [ceoLoading, setCeoLoading] = useState(false);
+  const [attrForm, setAttrForm] = useState({ lead_name: '', channel: '', content_title: '', revenue: '' });
+  const [attrSaving, setAttrSaving] = useState(false);
+  const [attrSuccess, setAttrSuccess] = useState(false);
+
+  useEffect(() => { loadDashboard(); }, []);
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    if (!loading && !ceoTriggered.current) {
+      ceoTriggered.current = true;
+      loadCeoInsight();
+    }
+  }, [loading]);
 
   async function loadDashboard() {
     try {
@@ -50,76 +68,46 @@ export default function CommandCenter() {
         supabase.from('ai_tasks_log').select('id', { count: 'exact', head: true }),
       ]);
 
-      const igFollowers = igData.data?.followers_count || 0;
-      const ttFollowers = ttData.data?.followers || 0;
-      const ytSubs = ytData.data?.subscribers || 0;
-      setTotalFollowers(igFollowers + ttFollowers + ytSubs);
+      setTotalFollowers((igData.data?.followers_count || 0) + (ttData.data?.followers || 0) + (ytData.data?.subscribers || 0));
 
       const allPosts: FeedItem[] = [];
       (igPosts.data || []).forEach((p) => allPosts.push({ id: p.ig_id, platform: 'instagram', text: p.caption || '', likes: p.like_count, timestamp: p.timestamp, thumbnail: p.thumbnail_url }));
       (ttVideos.data || []).forEach((v) => allPosts.push({ id: v.video_id, platform: 'tiktok', text: v.description || '', likes: v.likes, timestamp: v.created_at, thumbnail: v.thumbnail_url }));
       (ytVideos.data || []).forEach((v) => allPosts.push({ id: v.yt_id, platform: 'youtube', text: v.title || '', likes: v.likes, timestamp: v.published_at, thumbnail: v.thumbnail_url }));
-
       allPosts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      setFeed(allPosts.slice(0, 5));
+      setFeed(allPosts.slice(0, 8));
 
       const oneWeekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
       setPostsThisWeek(allPosts.filter((p) => p.timestamp > oneWeekAgo).length);
-
-      const allLikes = allPosts.slice(0, 10).map((p) => p.likes);
-      setAvgLikes(allLikes.length ? Math.round(allLikes.reduce((a, b) => a + b, 0) / allLikes.length) : 0);
-
-      const platformLikes: Record<string, number[]> = { instagram: [], tiktok: [], youtube: [] };
-      allPosts.forEach((p) => platformLikes[p.platform]?.push(p.likes));
-      let best = '—';
-      let bestAvg = 0;
-      Object.entries(platformLikes).forEach(([plat, likes]) => {
-        if (likes.length > 0) {
-          const avg = likes.reduce((a, b) => a + b, 0) / likes.length;
-          if (avg > bestAvg) { bestAvg = avg; best = plat.charAt(0).toUpperCase() + plat.slice(1); }
-        }
-      });
-      setBestPlatform(best);
       setAiTaskCount(aiTasks.count || 0);
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* silent */ } finally { setLoading(false); }
   }
 
-  const insightTriggered = useRef(false);
-
-  const loadInsight = async () => {
-    setInsightLoading(true);
+  async function loadCeoInsight() {
+    setCeoLoading(true);
     try {
-      const perfData = await fetchTopPerformanceData();
-      const perfContext = buildPerformanceContext(perfData);
+      const result = await runCeoAnalysis();
+      setCeoAnalysis(result);
+    } catch { setCeoAnalysis(null); } finally { setCeoLoading(false); }
+  }
 
-      const summary = [
-        `Followers gesamt: ${totalFollowers}. Posts diese Woche: ${postsThisWeek}. Avg Likes: ${avgLikes}. Beste Plattform: ${bestPlatform}.`,
-        perfContext ? `\n--- TOP CONTENT DATEN ---\n${perfContext}\n--- ENDE ---` : '',
-      ].join('');
-
-      const result = await callClaude(
-        'Du bist Joshua Tischers persoenlicher Performance-Analyst. Analysiere seine Plattform-Daten und gib einen konkreten, datenbasierten Handlungstipp. Nenne konkrete Zahlen. Max 3 Saetze. Deutsch. Kein Motivations-Bullshit.',
-        summary
-      );
-      await logAiTask('Dashboard Insight Agent', 'dashboard_insight', result);
-      setInsight(result);
-    } catch {
-      setInsight('AI Insight konnte nicht geladen werden. Bitte Claude API Key in Settings hinterlegen.');
-    } finally {
-      setInsightLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!loading && totalFollowers > 0 && !insightTriggered.current) {
-      insightTriggered.current = true;
-      loadInsight();
-    }
-  }, [loading]);
+  async function handleAttrSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!attrForm.lead_name || !attrForm.channel) return;
+    setAttrSaving(true);
+    try {
+      await createAttribution({
+        lead_name: attrForm.lead_name,
+        channel: attrForm.channel,
+        content_title: attrForm.content_title,
+        revenue: parseFloat(attrForm.revenue) || 0,
+        date: new Date().toISOString().split('T')[0],
+      });
+      setAttrForm({ lead_name: '', channel: '', content_title: '', revenue: '' });
+      setAttrSuccess(true);
+      setTimeout(() => setAttrSuccess(false), 2000);
+    } catch { /* silent */ } finally { setAttrSaving(false); }
+  }
 
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
@@ -133,8 +121,8 @@ export default function CommandCenter() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {[1, 2, 3, 4, 5].map((i) => <div key={i} className="shimmer h-24 rounded-xl" />)}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => <div key={i} className="shimmer h-24 rounded-xl" />)}
         </div>
         <div className="shimmer h-64 rounded-xl" />
       </div>
@@ -153,81 +141,137 @@ export default function CommandCenter() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Total Followers" value={formatNumber(totalFollowers)} icon={<Users size={15} />} accent />
-        <StatCard label="Posts / Woche" value={postsThisWeek} icon={<FileText size={15} />} />
-        <StatCard label="Avg Likes" value={formatNumber(avgLikes)} icon={<Heart size={15} />} subtitle="Letzte 10" />
-        <StatCard label="Beste Plattform" value={bestPlatform} icon={<Trophy size={15} />} />
+        <StatCard label="Posts diese Woche" value={postsThisWeek} icon={<FileText size={15} />} />
         <StatCard label="AI Tasks" value={aiTaskCount} icon={<Sparkles size={15} />} />
+        <StatCard label="CEO Status" value={ceoLoading ? '...' : ceoAnalysis ? 'Aktiv' : 'Offline'} icon={<Brain size={15} />} subtitle={ceoAnalysis ? formatTimeAgo(ceoAnalysis.generatedAt) : undefined} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 bg-jb-card border border-jb-border rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-jb-text mb-4">Live Feed</h3>
-          {feed.length === 0 ? (
-            <p className="text-xs text-jb-text-muted py-6 text-center">Noch keine Daten. Verbinde deine Plattformen unter Settings.</p>
-          ) : (
-            <div className="space-y-3">
-              {feed.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 p-3 bg-jb-bg rounded-lg hover:bg-jb-card-hover transition-colors">
-                  {item.thumbnail ? (
-                    <img src={item.thumbnail} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-jb-border flex items-center justify-center flex-shrink-0">
-                      {getPlatformIcon(item.platform)}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-jb-text truncate">{item.text || '—'}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className={`${getPlatformTextColor(item.platform)}`}>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-3 space-y-4">
+          <div className="bg-jb-card border border-jb-border rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-jb-text mb-4">Live Feed</h3>
+            {feed.length === 0 ? (
+              <p className="text-xs text-jb-text-muted py-6 text-center">Noch keine Daten. Verbinde deine Plattformen unter Settings.</p>
+            ) : (
+              <div className="space-y-2">
+                {feed.map((item) => (
+                  <div key={item.id} className="flex items-center gap-3 p-2.5 bg-jb-bg rounded-lg hover:bg-jb-card-hover transition-colors">
+                    {item.thumbnail ? (
+                      <img src={item.thumbnail} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-lg bg-jb-border flex items-center justify-center flex-shrink-0">
                         {getPlatformIcon(item.platform)}
-                      </span>
-                      <span className="stat-number text-[11px] text-jb-text-muted">{formatNumber(item.likes)} Likes</span>
-                      <span className="text-[11px] text-jb-text-muted">{formatTimeAgo(item.timestamp)}</span>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-jb-text truncate">{item.text || '\u2014'}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={getPlatformTextColor(item.platform)}>{getPlatformIcon(item.platform)}</span>
+                        <span className="stat-number text-[11px] text-jb-text-muted">{formatNumber(item.likes)} Likes</span>
+                        <span className="text-[11px] text-jb-text-muted">{formatTimeAgo(item.timestamp)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          <div className="bg-jb-card border border-jb-border rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-jb-text mb-3">Quick Actions</h3>
-            <div className="space-y-2">
-              <Button variant="secondary" size="sm" className="w-full justify-start" icon={<Sparkles size={14} />} onClick={() => navigate('/script-generator')}>
-                Script generieren <ArrowRight size={12} className="ml-auto" />
-              </Button>
-              <Button variant="secondary" size="sm" className="w-full justify-start" icon={<BarChart3 size={14} />} onClick={() => navigate('/analytics')}>
-                Performance analysieren <ArrowRight size={12} className="ml-auto" />
-              </Button>
-              <Button variant="secondary" size="sm" className="w-full justify-start" icon={<Plus size={14} />} onClick={() => navigate('/pipeline')}>
-                Idee hinzufuegen <ArrowRight size={12} className="ml-auto" />
-              </Button>
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
+          <div className="bg-jb-card border border-jb-border rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-jb-text">Attribution Schnelleingabe</h3>
+              {attrSuccess && <Badge color="bg-jb-success/10 text-jb-success">Gespeichert</Badge>}
+            </div>
+            <form onSubmit={handleAttrSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+              <input
+                type="text"
+                placeholder="Lead Name"
+                value={attrForm.lead_name}
+                onChange={(e) => setAttrForm({ ...attrForm, lead_name: e.target.value })}
+                className="w-full bg-jb-bg border border-jb-border rounded-lg px-3 py-2.5 text-sm text-jb-text focus:outline-none focus:border-jb-accent/50 focus:ring-1 focus:ring-jb-accent/20 transition-colors"
+                required
+              />
+              <Select options={CHANNEL_OPTIONS} value={attrForm.channel} onChange={(e) => setAttrForm({ ...attrForm, channel: e.target.value })} required />
+              <input
+                type="text"
+                placeholder="Content"
+                value={attrForm.content_title}
+                onChange={(e) => setAttrForm({ ...attrForm, content_title: e.target.value })}
+                className="w-full bg-jb-bg border border-jb-border rounded-lg px-3 py-2.5 text-sm text-jb-text focus:outline-none focus:border-jb-accent/50 focus:ring-1 focus:ring-jb-accent/20 transition-colors"
+              />
+              <input
+                type="number"
+                placeholder="Revenue"
+                value={attrForm.revenue}
+                onChange={(e) => setAttrForm({ ...attrForm, revenue: e.target.value })}
+                className="w-full bg-jb-bg border border-jb-border rounded-lg px-3 py-2.5 text-sm text-jb-text focus:outline-none focus:border-jb-accent/50 focus:ring-1 focus:ring-jb-accent/20 transition-colors"
+                min="0"
+                step="0.01"
+              />
+              <Button type="submit" size="md" loading={attrSaving} icon={<Send size={14} />}>Speichern</Button>
+            </form>
+          </div>
+        </div>
+
+        <div className="lg:col-span-2 space-y-4">
           <div className="bg-jb-card border border-jb-accent/20 rounded-xl p-5 accent-glow">
-            <h3 className="text-sm font-semibold text-jb-accent mb-3 flex items-center gap-2">
-              <Sparkles size={14} /> AI Insight
-            </h3>
-            {insightLoading ? (
-              <div className="flex items-center gap-2 py-2">
-                <div className="w-3 h-3 border-2 border-jb-accent border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs text-jb-text-muted">Analysiere...</span>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-jb-accent flex items-center gap-2">
+                <Brain size={14} /> CEO Insight
+              </h3>
+              <button onClick={loadCeoInsight} disabled={ceoLoading} className="text-jb-text-muted hover:text-jb-accent transition-colors disabled:opacity-50">
+                <RefreshCw size={14} className={ceoLoading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+            {ceoLoading ? (
+              <div className="flex items-center gap-2 py-6 justify-center">
+                <div className="w-4 h-4 border-2 border-jb-accent border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-jb-text-muted">CEO analysiert...</span>
+              </div>
+            ) : ceoAnalysis ? (
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-jb-text-secondary">Performance</span>
+                  <p className="text-sm text-jb-text leading-relaxed mt-1">{ceoAnalysis.performanceSummary}</p>
+                </div>
+                {ceoAnalysis.contentPriorities.length > 0 && (
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-jb-text-secondary">Top Prioritaet</span>
+                    <p className="text-sm text-jb-text mt-1">{ceoAnalysis.contentPriorities[0]}</p>
+                  </div>
+                )}
+                {ceoAnalysis.agentOptimizations.length > 0 && (
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-jb-text-secondary">Agent Update</span>
+                    <p className="text-xs text-jb-text-muted mt-1">
+                      <span className="text-jb-accent font-medium">{ceoAnalysis.agentOptimizations[0].agentName}</span>: {ceoAnalysis.agentOptimizations[0].reason}
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
-              <p className="text-sm text-jb-text leading-relaxed">
-                {insight || 'Verbinde deine Plattformen fuer AI-gestuetzte Insights.'}
-              </p>
+              <p className="text-sm text-jb-text-muted py-4 text-center">CEO Analyse nicht verfuegbar.</p>
             )}
-            {!insightLoading && totalFollowers > 0 && (
-              <Badge className="mt-3 cursor-pointer" color="bg-jb-accent/10 text-jb-accent">
-                <button onClick={loadInsight} className="text-[10px]">Neuer Tipp</button>
-              </Badge>
-            )}
+          </div>
+
+          <div className="bg-jb-card border border-jb-border rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-jb-text mb-3">Quick Actions</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="secondary" size="md" className="w-full justify-start" icon={<Sparkles size={16} />} onClick={() => navigate('/studio?tab=skript')}>
+                Skript
+              </Button>
+              <Button variant="secondary" size="md" className="w-full justify-start" icon={<Lightbulb size={16} />} onClick={() => navigate('/studio?tab=ideen')}>
+                Idee
+              </Button>
+              <Button variant="secondary" size="md" className="w-full justify-start" icon={<BarChart3 size={16} />} onClick={() => navigate('/platforms')}>
+                Plattformen
+              </Button>
+              <Button variant="secondary" size="md" className="w-full justify-start" icon={<Brain size={16} />} onClick={() => navigate('/brain?tab=upload')}>
+                Brain fuettern
+              </Button>
+            </div>
           </div>
         </div>
       </div>

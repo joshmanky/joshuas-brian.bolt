@@ -1,17 +1,17 @@
-// InstagramPage: Instagram analytics with profile stats, media grid, hook analysis, viral scores
+// InstagramTab: Instagram analytics with profile stats, media grid, hook analysis, viral scores
 import { useState, useEffect, useCallback } from 'react';
 import { Instagram, Users, Image, Heart, MessageCircle, BarChart3, Clock } from 'lucide-react';
-import StatCard from '../components/ui/StatCard';
-import ErrorBanner from '../components/ui/ErrorBanner';
-import ConnectionBar from '../components/platform/ConnectionBar';
-import MediaGrid from '../components/platform/MediaGrid';
-import SimpleBarChart from '../components/charts/SimpleBarChart';
-import { fetchInstagramData, getCachedInstagramData } from '../services/instagram';
-import { getApiKey } from '../services/apiKeys';
-import { formatNumber, average, detectHookType } from '../lib/utils';
-import type { InstagramData, InstagramPost } from '../types';
+import StatCard from '../../components/ui/StatCard';
+import ErrorBanner from '../../components/ui/ErrorBanner';
+import ConnectionBar from '../../components/platform/ConnectionBar';
+import MediaGrid from '../../components/platform/MediaGrid';
+import SimpleBarChart from '../../components/charts/SimpleBarChart';
+import { fetchInstagramData, getCachedInstagramData } from '../../services/instagram';
+import { getApiKey } from '../../services/apiKeys';
+import { formatNumber, average, detectHookType } from '../../lib/utils';
+import type { InstagramData, InstagramPost } from '../../types';
 
-export default function InstagramPage() {
+export default function InstagramTab() {
   const [profile, setProfile] = useState<InstagramData | null>(null);
   const [posts, setPosts] = useState<InstagramPost[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,16 +95,6 @@ export default function InstagramPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-jb-ig/10 flex items-center justify-center">
-          <Instagram size={20} className="text-jb-ig" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-jb-text">Instagram</h1>
-          <p className="text-sm text-jb-text-secondary">Analyse und Performance</p>
-        </div>
-      </div>
-
       <ConnectionBar
         connected={hasToken}
         fetchedAt={profile?.fetched_at || null}

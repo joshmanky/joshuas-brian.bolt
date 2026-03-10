@@ -1,14 +1,31 @@
-// AnalyticsPage: cross-platform analytics with AI hook insight card
+// OverviewTab: cross-platform analytics with attribution revenue chart
 import { useState, useEffect, useRef } from 'react';
-import { BarChart3, TrendingUp, Sparkles } from 'lucide-react';
-import StatCard from '../components/ui/StatCard';
-import SimpleBarChart from '../components/charts/SimpleBarChart';
-import SimpleLineChart from '../components/charts/SimpleLineChart';
-import { supabase } from '../lib/supabase';
-import { callClaude, logAiTask } from '../services/claude';
-import { formatNumber, average, detectHookType } from '../lib/utils';
+import { TrendingUp, BarChart3, Sparkles, DollarSign } from 'lucide-react';
+import StatCard from '../../components/ui/StatCard';
+import SimpleBarChart from '../../components/charts/SimpleBarChart';
+import SimpleLineChart from '../../components/charts/SimpleLineChart';
+import { supabase } from '../../lib/supabase';
+import { callClaude, logAiTask } from '../../services/claude';
+import { formatNumber, average, detectHookType } from '../../lib/utils';
 
-export default function AnalyticsPage() {
+const CHANNEL_COLORS: Record<string, string> = {
+  'Instagram DM': '#E1306C',
+  TikTok: '#00f2ea',
+  YouTube: '#FF0000',
+  Telegram: '#0088cc',
+  WhatsApp: '#25D366',
+  Email: '#b8f94a',
+};
+
+function getWeekNumber(d: Date): number {
+  const date = new Date(d.getTime());
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+  const week1 = new Date(date.getFullYear(), 0, 4);
+  return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+}
+
+export default function OverviewTab() {
   const [loading, setLoading] = useState(true);
   const [igFollowers, setIgFollowers] = useState(0);
   const [ttFollowers, setTtFollowers] = useState(0);
@@ -22,6 +39,7 @@ export default function AnalyticsPage() {
   const [hookInsight, setHookInsight] = useState('');
   const [hookInsightLoading, setHookInsightLoading] = useState(false);
   const hookInsightTriggered = useRef(false);
+  const [revenueByChannel, setRevenueByChannel] = useState<{ name: string; value: number; color: string }[]>([]);
 
   useEffect(() => {
     loadAnalytics();
@@ -29,13 +47,14 @@ export default function AnalyticsPage() {
 
   async function loadAnalytics() {
     try {
-      const [igData, ttData, ytData, igPosts, ttVideos, ytVideos] = await Promise.all([
+      const [igData, ttData, ytData, igPosts, ttVideos, ytVideos, attrData] = await Promise.all([
         supabase.from('instagram_data').select('followers_count').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('tiktok_data').select('followers').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('youtube_data').select('subscribers').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('instagram_posts').select('like_count, caption, media_type, timestamp').order('timestamp', { ascending: false }),
         supabase.from('tiktok_videos').select('likes, created_at').order('created_at', { ascending: false }),
         supabase.from('youtube_videos').select('likes, published_at').order('published_at', { ascending: false }),
+        supabase.from('attributions').select('channel, revenue'),
       ]);
 
       setIgFollowers(igData.data?.followers_count || 0);
@@ -106,6 +125,19 @@ export default function AnalyticsPage() {
         if (key in weeks) weeks[key]++;
       });
       setWeeklyPosts(Object.entries(weeks).map(([name, value]) => ({ name, value })));
+
+      const attrRows = attrData.data || [];
+      const channelRev: Record<string, number> = {};
+      attrRows.forEach((r) => {
+        channelRev[r.channel] = (channelRev[r.channel] || 0) + Number(r.revenue);
+      });
+      setRevenueByChannel(
+        Object.entries(channelRev).map(([name, value]) => ({
+          name,
+          value,
+          color: CHANNEL_COLORS[name] || '#b8f94a',
+        }))
+      );
     } catch {
       // silent
     } finally {
@@ -161,16 +193,6 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-jb-accent/10 flex items-center justify-center">
-          <BarChart3 size={20} className="text-jb-accent" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-jb-text">Performance Analytics</h1>
-          <p className="text-sm text-jb-text-secondary">Cross-Platform Vergleich</p>
-        </div>
-      </div>
-
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard label="IG Followers" value={formatNumber(igFollowers)} />
         <StatCard label="TT Followers" value={formatNumber(ttFollowers)} />
@@ -232,14 +254,15 @@ export default function AnalyticsPage() {
           <SimpleLineChart data={weeklyPosts} height={220} />
         </div>
       )}
+
+      {revenueByChannel.length > 0 && (
+        <div className="bg-jb-card border border-jb-border rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-jb-text mb-4 flex items-center gap-2">
+            <DollarSign size={15} className="text-jb-accent" /> Attribution Revenue nach Kanal (EUR)
+          </h3>
+          <SimpleBarChart data={revenueByChannel} height={200} />
+        </div>
+      )}
     </div>
   );
-}
-
-function getWeekNumber(d: Date): number {
-  const date = new Date(d.getTime());
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
-  const week1 = new Date(date.getFullYear(), 0, 4);
-  return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
 }

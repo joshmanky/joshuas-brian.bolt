@@ -1,15 +1,15 @@
-// SopsPage: SOP Library with add modal, search, category filter chips, expandable cards
+// SopsTab: SOP Library with add modal, search, category filter, expandable cards
 import { useState, useEffect } from 'react';
 import { BookOpen, Plus, Search, Trash2, Eye } from 'lucide-react';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
-import Modal from '../components/ui/Modal';
-import Badge from '../components/ui/Badge';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
-import { getAllSops, createSop, deleteSop } from '../services/sop';
-import { formatDate } from '../lib/utils';
-import type { SopDocument, SopCategory } from '../types';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Select from '../ui/Select';
+import Modal from '../ui/Modal';
+import Badge from '../ui/Badge';
+import LoadingSpinner from '../ui/LoadingSpinner';
+import { getAllSops, createSop, deleteSop } from '../../services/sop';
+import { formatDate } from '../../lib/utils';
+import type { SopDocument, SopCategory } from '../../types';
 
 const CATEGORY_OPTIONS = [
   { value: 'Content', label: 'Content' },
@@ -38,7 +38,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Sonstiges: 'bg-jb-text-muted/15 text-jb-text-secondary',
 };
 
-export default function SopsPage() {
+export default function SopsTab() {
   const [sops, setSops] = useState<SopDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -102,17 +102,9 @@ export default function SopsPage() {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-jb-accent/10 flex items-center justify-center">
-            <BookOpen size={20} className="text-jb-accent" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-jb-text">SOP Library</h1>
-            <p className="text-sm text-jb-text-secondary">{sops.length} Prozesse dokumentiert</p>
-          </div>
-        </div>
+    <div className="space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <p className="text-sm text-jb-text-secondary">{sops.length} Prozesse dokumentiert</p>
         <Button variant="primary" icon={<Plus size={14} />} onClick={() => setShowAddModal(true)}>
           Neues SOP
         </Button>

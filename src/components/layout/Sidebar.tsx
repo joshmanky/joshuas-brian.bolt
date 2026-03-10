@@ -1,23 +1,16 @@
-// Sidebar: main navigation — removed duplicate Content Research, Cross Analytics, SOP Library
+// Sidebar: 7-hub navigation (Command Center, Studio, Platforms, Pipeline, Brain, Agents, Settings)
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Instagram,
-  Youtube,
-  Music2,
-  Kanban,
   Sparkles,
   BarChart3,
+  Kanban,
   Brain,
   Settings,
   ChevronLeft,
   ChevronRight,
   Zap,
-  Lightbulb,
-  BookOpen,
   Cpu,
-  Target,
-  Search,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,18 +21,11 @@ interface SidebarProps {
 
 const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Command Center' },
-  { to: '/instagram', icon: Instagram, label: 'Instagram' },
-  { to: '/tiktok', icon: Music2, label: 'TikTok' },
-  { to: '/youtube', icon: Youtube, label: 'YouTube' },
+  { to: '/studio', icon: Sparkles, label: 'Content Studio' },
+  { to: '/platforms', icon: BarChart3, label: 'Plattformen' },
   { to: '/pipeline', icon: Kanban, label: 'Pipeline' },
-  { to: '/script-generator', icon: Sparkles, label: 'Script Generator' },
-  { to: '/lightbulb', icon: Lightbulb, label: 'Lightbulb Lab' },
-  { to: '/analytics', icon: BarChart3, label: 'Analytics' },
-  { to: '/research', icon: Search, label: 'Research' },
+  { to: '/brain', icon: Brain, label: 'Brain & Wissen' },
   { to: '/agents', icon: Cpu, label: 'Agents' },
-  { to: '/attribution', icon: Target, label: 'Attribution' },
-  { to: '/brain', icon: Brain, label: 'Joshua Brain' },
-  { to: '/sops', icon: BookOpen, label: 'SOPs' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 

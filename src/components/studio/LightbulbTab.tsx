@@ -1,25 +1,31 @@
-// LightbulbLabPage: daily AI-generated impulse newsletter, archive, and planned sources
+// LightbulbTab: daily AI impulse newsletter tab for Studio hub — generate, preview, archive, sources
 import { useState, useEffect, useCallback } from 'react';
-import { Lightbulb } from 'lucide-react';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
-import GenerateForm from '../components/lightbulb/GenerateForm';
-import EditionPreview from '../components/lightbulb/EditionPreview';
-import EditionArchive from '../components/lightbulb/EditionArchive';
-import PlannedSources from '../components/lightbulb/PlannedSources';
+import { Sparkles } from 'lucide-react';
+import LoadingSpinner from '../ui/LoadingSpinner';
+import Button from '../ui/Button';
+import GenerateForm from '../lightbulb/GenerateForm';
+import EditionPreview from '../lightbulb/EditionPreview';
+import EditionArchive from '../lightbulb/EditionArchive';
+import PlannedSources from '../lightbulb/PlannedSources';
 import {
   generateLightbulb,
   saveLightbulbEdition,
   getAllLightbulbEditions,
   deleteLightbulbEdition,
-} from '../services/lightbulb';
-import type { LightbulbEdition } from '../services/lightbulb';
+} from '../../services/lightbulb';
+import type { LightbulbEdition } from '../../services/lightbulb';
 
-export default function LightbulbLabPage() {
+interface LightbulbTabProps {
+  onUseAsScript: (topic: string) => void;
+}
+
+export default function LightbulbTab({ onUseAsScript }: LightbulbTabProps) {
   const [editions, setEditions] = useState<LightbulbEdition[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedTitle, setSavedTitle] = useState('');
   const [preview, setPreview] = useState<{
     content: string;
     category: string;
@@ -44,6 +50,7 @@ export default function LightbulbLabPage() {
     setGenerating(true);
     setPreview(null);
     setSaved(false);
+    setSavedTitle('');
     try {
       const content = await generateLightbulb(thema, quelle, gedanke, kategorie);
       setPreview({ content, category: kategorie, source: quelle, rawInput: gedanke });
@@ -70,6 +77,7 @@ export default function LightbulbLabPage() {
       if (edition) {
         setEditions((prev) => [edition, ...prev]);
         setSaved(true);
+        setSavedTitle(title);
       }
     } finally {
       setSaving(false);
@@ -85,18 +93,6 @@ export default function LightbulbLabPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-jb-accent/10 flex items-center justify-center">
-          <Lightbulb size={20} className="text-jb-accent" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-jb-text">Lightbulb Lab</h1>
-          <p className="text-sm text-jb-text-secondary">
-            Dein taeglicher Impuls-Newsletter -- geschrieben von dir, fuer dich.
-          </p>
-        </div>
-      </div>
-
       <div className="bg-jb-card border border-jb-border rounded-xl p-5">
         <h3 className="text-sm font-semibold text-jb-text mb-4">Neue Edition generieren</h3>
         <GenerateForm onGenerate={handleGenerate} loading={generating} />
@@ -107,13 +103,27 @@ export default function LightbulbLabPage() {
       )}
 
       {preview && !generating && (
-        <EditionPreview
-          content={preview.content}
-          category={preview.category}
-          onSave={handleSave}
-          saving={saving}
-          saved={saved}
-        />
+        <div className="space-y-3">
+          <EditionPreview
+            content={preview.content}
+            category={preview.category}
+            onSave={handleSave}
+            saving={saving}
+            saved={saved}
+          />
+          {saved && savedTitle && (
+            <div className="flex justify-end">
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Sparkles size={13} />}
+                onClick={() => onUseAsScript(savedTitle)}
+              >
+                Als Skript-Idee verwenden
+              </Button>
+            </div>
+          )}
+        </div>
       )}
 
       <EditionArchive editions={editions} onDelete={handleDelete} />

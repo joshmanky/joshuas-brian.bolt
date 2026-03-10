@@ -1,18 +1,18 @@
-// YouTubePage: YouTube analytics with channel stats, video grid, conversion metrics
+// YouTubeTab: YouTube analytics with channel stats, video grid, conversion metrics
 import { useState, useEffect, useCallback } from 'react';
 import { Youtube, Users, Eye, Video, ThumbsUp, TrendingUp } from 'lucide-react';
-import StatCard from '../components/ui/StatCard';
-import ErrorBanner from '../components/ui/ErrorBanner';
-import ConnectionBar from '../components/platform/ConnectionBar';
-import MediaGrid from '../components/platform/MediaGrid';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import { fetchYouTubeData, getCachedYouTubeData } from '../services/youtube';
-import { getApiKey } from '../services/apiKeys';
-import { formatNumber, average } from '../lib/utils';
-import type { YouTubeData, YouTubeVideo } from '../types';
+import StatCard from '../../components/ui/StatCard';
+import ErrorBanner from '../../components/ui/ErrorBanner';
+import ConnectionBar from '../../components/platform/ConnectionBar';
+import MediaGrid from '../../components/platform/MediaGrid';
+import Input from '../../components/ui/Input';
+import Button from '../../components/ui/Button';
+import { fetchYouTubeData, getCachedYouTubeData } from '../../services/youtube';
+import { getApiKey } from '../../services/apiKeys';
+import { formatNumber, average } from '../../lib/utils';
+import type { YouTubeData, YouTubeVideo } from '../../types';
 
-export default function YouTubePage() {
+export default function YouTubeTab() {
   const [profile, setProfile] = useState<YouTubeData | null>(null);
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -74,16 +74,6 @@ export default function YouTubePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-jb-yt/10 flex items-center justify-center">
-          <Youtube size={20} className="text-jb-yt" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-jb-text">YouTube</h1>
-          <p className="text-sm text-jb-text-secondary">Analyse und Performance</p>
-        </div>
-      </div>
-
       {hasToken && (
         <div className="flex items-end gap-3">
           <div className="flex-1 max-w-xs">

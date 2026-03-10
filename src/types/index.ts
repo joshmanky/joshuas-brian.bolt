@@ -191,3 +191,15 @@ export interface AgentInfo {
   systemPrompt: string;
   testMessage: string;
 }
+
+export interface AgentProposal {
+  id: string;
+  name: string;
+  role: string;
+  status: 'pending' | 'approved' | 'rejected';
+  system_prompt: string;
+  test_message: string;
+  reasoning: string;
+  raw_task_description: string;
+  created_at: string;
+}

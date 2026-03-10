@@ -1,13 +1,20 @@
-// ScriptGeneratorPage: data-aware AI script generator — fetches real performance data before Claude call
+// ScriptTab: AI script generator tab for Studio hub — data-aware generation with prefill from Ideas
 import { useState, useEffect } from 'react';
-import { Sparkles, Copy, Check, Plus, Wand2, TrendingUp } from 'lucide-react';
-import Button from '../components/ui/Button';
-import Select from '../components/ui/Select';
-import { callClaude, logAiTask, SCRIPT_SYSTEM_PROMPT } from '../services/claude';
-import { createCard } from '../services/pipeline';
-import { fetchTopPerformanceData, buildPerformanceContext } from '../services/performanceData';
-import { HOOK_TYPE_LABELS } from '../types';
-import type { HookType } from '../types';
+import { Sparkles, Copy, Check, Plus, Wand2, TrendingUp, X } from 'lucide-react';
+import Button from '../ui/Button';
+import Select from '../ui/Select';
+import { callClaude, logAiTask, SCRIPT_SYSTEM_PROMPT } from '../../services/claude';
+import { createCard } from '../../services/pipeline';
+import { fetchTopPerformanceData, buildPerformanceContext } from '../../services/performanceData';
+import { HOOK_TYPE_LABELS } from '../../types';
+import type { HookType } from '../../types';
+
+interface ScriptTabProps {
+  prefilledTopic: string;
+  prefilledHookType: string;
+  prefilledPlatform: string;
+  onClearPrefill: () => void;
+}
 
 const PLATFORM_OPTIONS = [
   { value: 'instagram', label: 'Instagram Reel' },
@@ -20,7 +27,12 @@ const HOOK_OPTIONS = Object.entries(HOOK_TYPE_LABELS).map(([value, label]) => ({
   label,
 }));
 
-export default function ScriptGeneratorPage() {
+export default function ScriptTab({
+  prefilledTopic,
+  prefilledHookType,
+  prefilledPlatform,
+  onClearPrefill,
+}: ScriptTabProps) {
   const [topic, setTopic] = useState('');
   const [platform, setPlatform] = useState('instagram');
   const [hookType, setHookType] = useState<HookType>('statement_hook');
@@ -40,6 +52,14 @@ export default function ScriptGeneratorPage() {
       })
       .catch(() => setDataLoaded(true));
   }, []);
+
+  useEffect(() => {
+    if (prefilledTopic) setTopic(prefilledTopic);
+    if (prefilledHookType && prefilledHookType in HOOK_TYPE_LABELS) {
+      setHookType(prefilledHookType as HookType);
+    }
+    if (prefilledPlatform) setPlatform(prefilledPlatform);
+  }, [prefilledTopic, prefilledHookType, prefilledPlatform]);
 
   const handleGenerate = async () => {
     if (!topic.trim()) return;
@@ -88,15 +108,19 @@ export default function ScriptGeneratorPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-jb-accent/10 flex items-center justify-center">
-          <Sparkles size={20} className="text-jb-accent" />
+      {prefilledTopic && (
+        <div className="bg-jb-success/5 border border-jb-success/20 rounded-xl p-4 flex items-center justify-between">
+          <p className="text-sm text-jb-success font-medium">
+            Idee uebertragen: {prefilledTopic}
+          </p>
+          <button
+            onClick={onClearPrefill}
+            className="p-1 rounded-lg text-jb-success/60 hover:text-jb-success hover:bg-jb-success/10 transition-colors"
+          >
+            <X size={16} />
+          </button>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-jb-text">AI Script Generator</h1>
-          <p className="text-sm text-jb-text-secondary">Datenbasierte Skripte mit KI generieren</p>
-        </div>
-      </div>
+      )}
 
       {dataLoaded && perfContext && (
         <div className="bg-jb-success/5 border border-jb-success/20 rounded-xl p-4 flex items-start gap-3">
@@ -174,7 +198,7 @@ export default function ScriptGeneratorPage() {
                 onClick={handleSaveToPipeline}
                 disabled={savedToPipeline}
               >
-                {savedToPipeline ? 'In Pipeline!' : 'Zur Pipeline'}
+                {savedToPipeline ? 'In Pipeline!' : 'Direkt zur Pipeline hinzufuegen'}
               </Button>
             </div>
           </div>

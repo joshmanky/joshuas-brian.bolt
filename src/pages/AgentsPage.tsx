@@ -1,15 +1,24 @@
-// AgentsPage: Agent Control with CEO Agent analysis, real system prompts, test buttons, task logs
+// AgentsPage: Agent Control + Agent Hiring — 2-tab hub with CEO auto-run and hiring workflow
 import { useState, useEffect } from 'react';
-import { Bot, Cpu, Activity, CheckCircle2, Clock, Wrench, Settings2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Bot, UserPlus, Cpu, Activity, CheckCircle2, Clock, Wrench, Settings2 } from 'lucide-react';
+import TabBar from '../components/ui/TabBar';
 import StatCard from '../components/ui/StatCard';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import AgentConfigPanel from '../components/agents/AgentConfigPanel';
+import AgentHiringTab from '../components/agents/AgentHiringTab';
 import { AGENT_REGISTRY, getAiTaskLogs } from '../services/agents';
 import { runCeoAnalysis, type CeoAnalysis } from '../services/ceoAgent';
+import { supabase } from '../lib/supabase';
 import { formatTimeAgo } from '../lib/utils';
 import type { AiTaskLog } from '../types';
+
+const TABS = [
+  { key: 'control', label: 'Agent Control', icon: <Bot size={15} /> },
+  { key: 'hiring', label: 'Agent Hiring', icon: <UserPlus size={15} /> },
+];
 
 const STATUS_ICON: Record<string, typeof Activity> = {
   Active: Activity,
@@ -27,6 +36,8 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function AgentsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'control';
   const [taskLogs, setTaskLogs] = useState<AiTaskLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [ceoAnalysis, setCeoAnalysis] = useState<CeoAnalysis | null>(null);
@@ -36,12 +47,36 @@ export default function AgentsPage() {
     loadLogs();
   }, []);
 
+  useEffect(() => {
+    checkAndRunCeo();
+  }, []);
+
   async function loadLogs() {
     try {
       const logs = await getAiTaskLogs();
       setTaskLogs(logs);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function checkAndRunCeo() {
+    const { data: lastCeoRun } = await supabase
+      .from('ai_tasks_log')
+      .select('created_at')
+      .eq('agent_name', 'CEO Agent')
+      .eq('task_type', 'full_system_optimization')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const lastRun = lastCeoRun?.created_at ? new Date(lastCeoRun.created_at) : null;
+    const daysSinceRun = lastRun ? (Date.now() - lastRun.getTime()) / 86400000 : 999;
+    if (daysSinceRun > 7) {
+      setCeoLoading(true);
+      try {
+        const analysis = await runCeoAnalysis();
+        setCeoAnalysis(analysis);
+      } catch {} finally { setCeoLoading(false); }
     }
   }
 
@@ -57,6 +92,10 @@ export default function AgentsPage() {
     } finally {
       setCeoLoading(false);
     }
+  }
+
+  function handleTabChange(key: string) {
+    setSearchParams({ tab: key });
   }
 
   const activeAgents = AGENT_REGISTRY.filter((a) => a.status === 'Active').length;
@@ -76,88 +115,96 @@ export default function AgentsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Total Agents" value={AGENT_REGISTRY.length} icon={<Bot size={15} />} />
-        <StatCard label="Active Agents" value={activeAgents} icon={<Activity size={15} />} />
-        <StatCard label="AI Tasks" value={completedTasks} icon={<CheckCircle2 size={15} />} />
-        <StatCard label="System Status" value="Online" icon={<Activity size={15} />} accent />
-      </div>
+      <TabBar tabs={TABS} activeTab={activeTab} onChange={handleTabChange} />
 
-      <div>
-        <h3 className="text-sm font-semibold text-jb-text mb-3">Agenten ({AGENT_REGISTRY.length})</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {AGENT_REGISTRY.map((agent) => {
-            const StatusIcon = STATUS_ICON[agent.status] || Activity;
-            return (
-              <div
-                key={agent.name}
-                className="bg-jb-card border border-jb-border rounded-xl p-4 hover:border-jb-border-light transition-all duration-200"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-jb-accent/10 flex items-center justify-center">
-                    <Bot size={16} className="text-jb-accent" />
-                  </div>
-                  <Badge color={STATUS_COLOR[agent.status]}>{agent.status}</Badge>
-                </div>
-                <h4 className="text-sm font-semibold text-jb-text mb-1">{agent.name}</h4>
-                <p className="text-xs text-jb-text-secondary leading-relaxed mb-3">{agent.role}</p>
-                <div className="flex items-center gap-1.5 text-[10px] text-jb-text-muted">
-                  <StatusIcon size={10} />
-                  <span>{agent.lastTask}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <CeoAgentSection
-        analysis={ceoAnalysis}
-        loading={ceoLoading}
-        onAnalyze={handleCeoAnalysis}
-      />
-
-      <div>
-        <h3 className="text-sm font-semibold text-jb-text mb-3 flex items-center gap-2">
-          <Settings2 size={14} className="text-jb-accent" /> Agent Konfiguration
-        </h3>
-        <div className="space-y-2">
-          {AGENT_REGISTRY.map((agent) => (
-            <AgentConfigPanel key={agent.name} agent={agent} />
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-jb-card border border-jb-border rounded-xl overflow-hidden">
-        <div className="px-5 py-3 border-b border-jb-border">
-          <h3 className="text-sm font-semibold text-jb-text">AI Tasks Log</h3>
-        </div>
-        {taskLogs.length === 0 ? (
-          <div className="px-5 py-8 text-center text-sm text-jb-text-muted">
-            Noch keine Tasks geloggt.
+      {activeTab === 'control' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard label="Total Agents" value={AGENT_REGISTRY.length} icon={<Bot size={15} />} />
+            <StatCard label="Active Agents" value={activeAgents} icon={<Activity size={15} />} />
+            <StatCard label="AI Tasks" value={completedTasks} icon={<CheckCircle2 size={15} />} />
+            <StatCard label="System Status" value="Online" icon={<Activity size={15} />} accent />
           </div>
-        ) : (
-          <div className="divide-y divide-jb-border max-h-[400px] overflow-y-auto">
-            {taskLogs.map((log) => (
-              <div key={log.id} className="flex items-center gap-4 px-5 py-3 hover:bg-jb-card-hover transition-colors">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-jb-text">{log.agent_name || 'System'}</span>
-                    <Badge color="bg-jb-card border border-jb-border text-jb-text-secondary">{log.task_type}</Badge>
+
+          <div>
+            <h3 className="text-sm font-semibold text-jb-text mb-3">Agenten ({AGENT_REGISTRY.length})</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {AGENT_REGISTRY.map((agent) => {
+                const StatusIcon = STATUS_ICON[agent.status] || Activity;
+                return (
+                  <div
+                    key={agent.name}
+                    className="bg-jb-card border border-jb-border rounded-xl p-4 hover:border-jb-border-light transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-lg bg-jb-accent/10 flex items-center justify-center">
+                        <Bot size={16} className="text-jb-accent" />
+                      </div>
+                      <Badge color={STATUS_COLOR[agent.status]}>{agent.status}</Badge>
+                    </div>
+                    <h4 className="text-sm font-semibold text-jb-text mb-1">{agent.name}</h4>
+                    <p className="text-xs text-jb-text-secondary leading-relaxed mb-3">{agent.role}</p>
+                    <div className="flex items-center gap-1.5 text-[10px] text-jb-text-muted">
+                      <StatusIcon size={10} />
+                      <span>{agent.lastTask}</span>
+                    </div>
                   </div>
-                  <p className="text-xs text-jb-text-secondary truncate">
-                    {(log.output_summary || '').slice(0, 80)}{(log.output_summary || '').length > 80 ? '...' : ''}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <Badge color={STATUS_COLOR[log.status] || STATUS_COLOR.completed}>{log.status || 'completed'}</Badge>
-                  <span className="text-[10px] text-jb-text-muted">{formatTimeAgo(log.created_at)}</span>
-                </div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
-        )}
-      </div>
+
+          <CeoAgentSection
+            analysis={ceoAnalysis}
+            loading={ceoLoading}
+            onAnalyze={handleCeoAnalysis}
+          />
+
+          <div>
+            <h3 className="text-sm font-semibold text-jb-text mb-3 flex items-center gap-2">
+              <Settings2 size={14} className="text-jb-accent" /> Agent Konfiguration
+            </h3>
+            <div className="space-y-2">
+              {AGENT_REGISTRY.map((agent) => (
+                <AgentConfigPanel key={agent.name} agent={agent} />
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-jb-card border border-jb-border rounded-xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-jb-border">
+              <h3 className="text-sm font-semibold text-jb-text">AI Tasks Log</h3>
+            </div>
+            {taskLogs.length === 0 ? (
+              <div className="px-5 py-8 text-center text-sm text-jb-text-muted">
+                Noch keine Tasks geloggt.
+              </div>
+            ) : (
+              <div className="divide-y divide-jb-border max-h-[400px] overflow-y-auto">
+                {taskLogs.map((log) => (
+                  <div key={log.id} className="flex items-center gap-4 px-5 py-3 hover:bg-jb-card-hover transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-medium text-jb-text">{log.agent_name || 'System'}</span>
+                        <Badge color="bg-jb-card border border-jb-border text-jb-text-secondary">{log.task_type}</Badge>
+                      </div>
+                      <p className="text-xs text-jb-text-secondary truncate">
+                        {(log.output_summary || '').slice(0, 80)}{(log.output_summary || '').length > 80 ? '...' : ''}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <Badge color={STATUS_COLOR[log.status] || STATUS_COLOR.completed}>{log.status || 'completed'}</Badge>
+                      <span className="text-[10px] text-jb-text-muted">{formatTimeAgo(log.created_at)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'hiring' && <AgentHiringTab />}
     </div>
   );
 }

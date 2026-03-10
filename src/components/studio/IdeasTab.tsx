@@ -1,23 +1,25 @@
-// ResearchPage: Content Research with AI-generated ideas, manual input, saved ideas list
+// IdeasTab: Content Research tab for Studio hub — AI idea generation, manual input, saved ideas list
 import { useState, useEffect, useCallback } from 'react';
-import { Lightbulb, Sparkles, FileText } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
-import ResearchIdeaGrid from '../components/research/ResearchIdeaGrid';
-import ResearchForm from '../components/research/ResearchForm';
-import ResearchList from '../components/research/ResearchList';
+import { Sparkles, FileText } from 'lucide-react';
+import LoadingSpinner from '../ui/LoadingSpinner';
+import ResearchIdeaGrid from '../research/ResearchIdeaGrid';
+import ResearchForm from '../research/ResearchForm';
+import ResearchList from '../research/ResearchList';
 import {
   getAllResearchItems,
   createResearchItem,
   updateResearchItemStatus,
   deleteResearchItem,
   generateResearchIdeas,
-} from '../services/research';
-import { createCard } from '../services/pipeline';
-import type { ResearchItem } from '../types';
+} from '../../services/research';
+import { createCard } from '../../services/pipeline';
+import type { ResearchItem } from '../../types';
 
-export default function ResearchPage() {
-  const navigate = useNavigate();
+interface IdeasTabProps {
+  onNavigateToScript: (topic: string, hookType: string, platform: string) => void;
+}
+
+export default function IdeasTab({ onNavigateToScript }: IdeasTabProps) {
   const [items, setItems] = useState<ResearchItem[]>([]);
   const [aiIdeas, setAiIdeas] = useState<ResearchItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +70,7 @@ export default function ResearchPage() {
   }
 
   async function handleGenerateScript(item: ResearchItem) {
-    navigate(`/script-generator?title=${encodeURIComponent(item.title)}`);
+    onNavigateToScript(item.title, item.hook_type, item.platform);
   }
 
   async function handleDelete(id: string) {
@@ -81,16 +83,6 @@ export default function ResearchPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-jb-accent/10 flex items-center justify-center">
-          <Lightbulb size={20} className="text-jb-accent" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-jb-text">Content Research</h1>
-          <p className="text-sm text-jb-text-secondary">{items.length} Ideen gespeichert</p>
-        </div>
-      </div>
-
       <div className="bg-jb-card border border-jb-border rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-jb-text flex items-center gap-2">

@@ -1,19 +1,19 @@
-// TikTokPage: TikTok analytics with profile stats, video grid, engagement trends
+// TikTokTab: TikTok analytics with profile stats, video grid, engagement trends
 import { useState, useEffect, useCallback } from 'react';
 import { Music2, Users, Heart, Eye, Video } from 'lucide-react';
-import StatCard from '../components/ui/StatCard';
-import ErrorBanner from '../components/ui/ErrorBanner';
-import ConnectionBar from '../components/platform/ConnectionBar';
-import MediaGrid from '../components/platform/MediaGrid';
-import SimpleLineChart from '../components/charts/SimpleLineChart';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import { fetchTikTokData, getCachedTikTokData } from '../services/tiktok';
-import { getApiKey } from '../services/apiKeys';
-import { formatNumber, average } from '../lib/utils';
-import type { TikTokData, TikTokVideo } from '../types';
+import StatCard from '../../components/ui/StatCard';
+import ErrorBanner from '../../components/ui/ErrorBanner';
+import ConnectionBar from '../../components/platform/ConnectionBar';
+import MediaGrid from '../../components/platform/MediaGrid';
+import SimpleLineChart from '../../components/charts/SimpleLineChart';
+import Input from '../../components/ui/Input';
+import Button from '../../components/ui/Button';
+import { fetchTikTokData, getCachedTikTokData } from '../../services/tiktok';
+import { getApiKey } from '../../services/apiKeys';
+import { formatNumber, average } from '../../lib/utils';
+import type { TikTokData, TikTokVideo } from '../../types';
 
-export default function TikTokPage() {
+export default function TikTokTab() {
   const [profile, setProfile] = useState<TikTokData | null>(null);
   const [videos, setVideos] = useState<TikTokVideo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -75,16 +75,6 @@ export default function TikTokPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-jb-tt/10 flex items-center justify-center">
-          <Music2 size={20} className="text-jb-tt" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-jb-text">TikTok</h1>
-          <p className="text-sm text-jb-text-secondary">Analyse und Performance</p>
-        </div>
-      </div>
-
       {hasToken && (
         <div className="flex items-end gap-3">
           <div className="flex-1 max-w-xs">
