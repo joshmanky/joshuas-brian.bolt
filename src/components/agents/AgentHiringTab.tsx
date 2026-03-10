@@ -1,4 +1,5 @@
 // AgentHiringTab: propose, review, test and approve/reject new agents via Claude + Agent Architect
+// Updated: compressed system prompt
 import { useState, useEffect } from 'react';
 import { Send, Play, CheckCircle2, XCircle, ChevronDown, ChevronRight, AlertCircle, Copy } from 'lucide-react';
 import Button from '../ui/Button';
@@ -10,19 +11,7 @@ import { callClaude, logAiTask } from '../../services/claude';
 import { formatDate } from '../../lib/utils';
 import type { AgentProposal } from '../../types';
 
-const HIRING_SYSTEM_PROMPT = `Du bist der CEO des Joshua Brain Systems. Ein neuer Agent bewirbt sich.
-Erstelle basierend auf der Aufgabenbeschreibung einen vollstaendigen Agent-Vorschlag.
-Joshua Tischer's Nische: Psychologische Blockadenloesung, H.I.S.-Methode, Network Marketing, Trading.
-
-Antworte NUR als JSON:
-{
-  "name": "Name des Agents",
-  "role": "Kurze Rollenbeschreibung (1 Satz)",
-  "status": "Vorgeschlagen",
-  "systemPrompt": "Vollstaendiger System Prompt fuer diesen Agent (mindestens 150 Woerter, auf Joshs Nische zugeschnitten)",
-  "testMessage": "Eine Test-Nachricht um diesen Agent zu testen",
-  "reasoning": "Warum dieser Agent Joshua's System verbessert (2-3 Saetze)"
-}`;
+const HIRING_SYSTEM_PROMPT = `CEO des Joshua Brain Systems. Nische: H.I.S.-Methode, Anti-Guru Blockadenloesung, Network Marketing + Trading, DreamChasers Industry. Erstelle einen Agent-Vorschlag basierend auf der Aufgabe. Antworte NUR als JSON: {"name":"...","role":"1 Satz","status":"Vorgeschlagen","systemPrompt":"mind. 150 Woerter, Joshs Nische","testMessage":"...","reasoning":"2-3 Saetze"}`;
 
 const CREATE_TABLE_SQL = `CREATE TABLE agent_proposals (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

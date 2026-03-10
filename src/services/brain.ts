@@ -1,7 +1,11 @@
-// Brain service: upload documents, extract insights, search content — added AI task logging
+// Brain service: upload documents, extract insights, search content
+// Updated: 30min in-memory cache for generateContentFromBrain, compressed system prompts
 import { supabase } from '../lib/supabase';
 import { callClaude, logAiTask } from './claude';
 import type { BrainDocument } from '../types';
+
+const CACHE_TTL = 30 * 60 * 1000;
+let brainContentCache: { data: string; timestamp: number } | null = null;
 
 export async function getAllDocuments(): Promise<BrainDocument[]> {
   const { data } = await supabase
@@ -34,7 +38,7 @@ export async function uploadDocument(
 
   try {
     const extractResult = await callClaude(
-      'Du bist ein Content-Analyst. Extrahiere die 5 besten Zitate und 3 wichtigsten Insights aus dem folgenden Text. Antworte als JSON: {"quotes": ["..."], "insights": ["..."]}. Nur JSON, kein anderer Text.',
+      'Extrahiere 5 Zitate und 3 Insights. Antworte NUR als JSON: {"quotes":["..."],"insights":["..."]}',
       fullText.slice(0, 8000)
     );
     await logAiTask('Brain Extract Agent', 'document_extraction', extractResult);
@@ -74,7 +78,7 @@ export async function searchBrain(query: string): Promise<string> {
     .join('\n\n');
 
   const result = await callClaude(
-    'Du bist ein Wissens-Assistent. Durchsuche den folgenden Content und beantworte die Frage praezise. Zitiere relevante Stellen. Deutsch.',
+    'Wissens-Assistent. Beantworte die Frage praezise anhand des Contents, zitiere relevante Stellen. Deutsch.',
     `Frage: ${query}\n\nContent:\n${context.slice(0, 12000)}`
   );
   await logAiTask('Brain Search Agent', 'brain_search', result);
@@ -83,6 +87,10 @@ export async function searchBrain(query: string): Promise<string> {
 }
 
 export async function generateContentFromBrain(): Promise<string> {
+  if (brainContentCache && Date.now() - brainContentCache.timestamp < CACHE_TTL) {
+    return brainContentCache.data;
+  }
+
   const { data: docs } = await supabase
     .from('brain_documents')
     .select('filename, extracted_quotes, extracted_insights');
@@ -93,10 +101,11 @@ export async function generateContentFromBrain(): Promise<string> {
   const allInsights = docs.flatMap((d) => (d.extracted_insights as string[]) || []);
 
   const result = await callClaude(
-    'Du bist ein Content-Stratege. Basierend auf den folgenden Zitaten und Insights, schlage 5 virale Video-Ideen vor. Jede Idee mit Titel, Hook-Typ und kurzer Beschreibung. Deutsch.',
+    'Content-Stratege. Schlage 5 virale Video-Ideen vor (Titel, Hook-Typ, Beschreibung) basierend auf den Zitaten und Insights. Deutsch.',
     `Zitate:\n${allQuotes.join('\n')}\n\nInsights:\n${allInsights.join('\n')}`
   );
   await logAiTask('Brain Content Agent', 'brain_content_generation', result);
 
+  brainContentCache = { data: result, timestamp: Date.now() };
   return result;
 }

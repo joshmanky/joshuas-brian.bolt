@@ -1,4 +1,5 @@
 // Canva Connect API service: OAuth, asset upload, design creation, export, master workflow
+// Updated: simplified upsert — removed delete+insert fallback
 import { supabase } from '../../lib/supabase';
 
 const CANVA_API = 'https://api.canva.com/rest/v1';
@@ -39,28 +40,20 @@ export async function exchangeCanvaCode(code: string, codeVerifier: string): Pro
   });
   if (error || !data?.access_token) return false;
 
-  const { error: upsertErr } = await supabase
+  await supabase
     .from('api_keys')
     .upsert(
       { platform: 'canva_access_token', key_value: data.access_token },
-      { onConflict: 'platform', ignoreDuplicates: false }
+      { onConflict: 'platform' }
     );
-  if (upsertErr) {
-    await supabase.from('api_keys').delete().eq('platform', 'canva_access_token');
-    await supabase.from('api_keys').insert({ platform: 'canva_access_token', key_value: data.access_token });
-  }
 
   if (data.refresh_token) {
-    const { error: refreshErr } = await supabase
+    await supabase
       .from('api_keys')
       .upsert(
         { platform: 'canva_refresh_token', key_value: data.refresh_token },
-        { onConflict: 'platform', ignoreDuplicates: false }
+        { onConflict: 'platform' }
       );
-    if (refreshErr) {
-      await supabase.from('api_keys').delete().eq('platform', 'canva_refresh_token');
-      await supabase.from('api_keys').insert({ platform: 'canva_refresh_token', key_value: data.refresh_token });
-    }
   }
   return true;
 }

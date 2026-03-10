@@ -1,5 +1,5 @@
 // BrollTab: B-Roll text-set generator + Canva automated workflow (upload, design, export MP4)
-// Fixed: popup blocker handling with fallback link
+// Updated: compressed system prompt
 import { useState, useEffect } from 'react';
 import { Film, Wand2, Download, CheckCircle2, AlertCircle, Upload, ExternalLink } from 'lucide-react';
 import Button from '../ui/Button';
@@ -13,18 +13,7 @@ import {
 } from '../../services/canva/canvaService';
 import type { WorkflowResult } from '../../services/canva/canvaService';
 
-const BROLL_SYSTEM_PROMPT = `Du bist ein B-Roll Text-Overlay Spezialist fuer Social Media Content. Du generierst kurze, praegnante Text-Sets die ueber B-Roll Footage gelegt werden.
-
-Regeln:
-- Max 6-8 Woerter pro Text
-- Kein Hashtag, kein Emoji
-- Klare, lesbare Aussagen
-- Fuer vertikales Video (9:16)
-- Schriftart-freundlich (keine Sonderzeichen)
-- Passend zum Thema, emotional oder provokant
-
-Antworte NUR mit einem JSON Array von 5-8 Text-Optionen. Beispiel:
-["Text eins", "Text zwei", "Text drei"]`;
+const BROLL_SYSTEM_PROMPT = `B-Roll Text-Overlay Spezialist. Generiere 5-8 kurze, emotionale oder provokante Text-Overlays (max 6-8 Woerter, keine Hashtags/Emojis/Sonderzeichen) fuer vertikales Social Media Video. Antworte NUR als JSON Array: ["Text eins","Text zwei","Text drei"]`;
 
 const FORMAT_OPTIONS = [
   { value: 'vertical', label: '9:16 Vertikal (Reels/TikTok)' },

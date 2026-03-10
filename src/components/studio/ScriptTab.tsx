@@ -1,9 +1,10 @@
 // ScriptTab: AI script generator tab for Studio hub — data-aware generation with prefill from Ideas
+// Updated: uses Sonnet model with 1000 tokens for script generation
 import { useState, useEffect } from 'react';
 import { Sparkles, Copy, Check, Plus, Wand2, TrendingUp, X } from 'lucide-react';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
-import { callClaude, logAiTask, SCRIPT_SYSTEM_PROMPT } from '../../services/claude';
+import { callClaude, logAiTask, SCRIPT_SYSTEM_PROMPT, CLAUDE_MODELS } from '../../services/claude';
 import { createCard } from '../../services/pipeline';
 import { fetchTopPerformanceData, buildPerformanceContext } from '../../services/performanceData';
 import { HOOK_TYPE_LABELS } from '../../types';
@@ -79,7 +80,7 @@ export default function ScriptTab({
       }
       userMessage += `Erstelle ein virales ${platformLabel} Skript zum Thema: "${topic}". Verwende einen ${hookLabel}. Formatiere klar mit den 5 Phasen: Hook, Situation, Emotion, Mehrwert/Loesung, CTA.`;
 
-      const result = await callClaude(SCRIPT_SYSTEM_PROMPT, userMessage);
+      const result = await callClaude(SCRIPT_SYSTEM_PROMPT, userMessage, CLAUDE_MODELS.SONNET, 1000);
       await logAiTask('Script Generation Agent', 'script_generation', result);
       setScript(result);
     } catch (e) {

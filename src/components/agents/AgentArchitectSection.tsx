@@ -1,5 +1,5 @@
 // AgentArchitectSection: AI analyzes agent stack and proposes 3-5 new agents to fill gaps
-// Updated: DACH-Markt focus, placeholder state, refined system prompt
+// Updated: compressed system prompt, DACH-Markt focus
 import { useState } from 'react';
 import { Cpu, Plus, Sparkles, Loader, CheckCircle2 } from 'lucide-react';
 import Button from '../ui/Button';
@@ -16,19 +16,7 @@ interface ArchitectSuggestion {
   system_prompt: string;
 }
 
-const ARCHITECT_SYSTEM_PROMPT = `Du bist der Agent Architect fuer Joshua Brain Dashboard. Analysiere den folgenden Agent Stack und schlage 3-5 neue Agents vor, die das System sinnvoll ergaenzen. Fokus auf: Content-Automatisierung, Lead-Generierung, Performance-Optimierung, DACH-Markt-spezifische Features.
-
-Joshua Tischer's Nische: Psychologische Blockadenloesung, H.I.S.-Methode, Network Marketing, Trading.
-Zielgruppe: 20-30 Jahre, "innerlich festgefahrene Potenzialtraeger" im DACH-Raum.
-
-Antworte NUR als valides JSON Array, kein Text drumherum: [{"name": "...", "role": "...", "description": "...", "reasoning": "...", "system_prompt": "..."}]
-
-Jeder Vorschlag muss:
-- Einen konkreten, einzigartigen Namen haben (z.B. "Lead Magnet Agent", "Community Engagement Agent")
-- Eine klare Rolle beschreiben (1 Satz)
-- Eine ausfuehrliche Beschreibung enthalten (2-3 Saetze was der Agent konkret tut)
-- Begruenden WARUM dieser Agent im aktuellen Stack fehlt und das System messbar verbessert
-- Einen vollstaendigen System Prompt enthalten (mindestens 100 Woerter, auf Joshs Nische und DACH-Markt zugeschnitten)`;
+const ARCHITECT_SYSTEM_PROMPT = `Agent Architect fuer Joshua Brain Dashboard. Nische: H.I.S.-Methode, Anti-Guru Blockadenloesung, Network Marketing + Trading, DACH-Markt, Zielgruppe 20-30 Jahre. Analysiere den Agent Stack und schlage 3-5 neue Agents vor (Content-Automatisierung, Lead-Generierung, Performance). Antworte NUR als JSON: [{"name":"...","role":"1 Satz","description":"2-3 Saetze","reasoning":"warum fehlt","system_prompt":"mind. 100 Woerter, auf Joshs Nische zugeschnitten"}]`;
 
 interface AgentArchitectSectionProps {
   onProposalAdded: (proposal: AgentProposal) => void;

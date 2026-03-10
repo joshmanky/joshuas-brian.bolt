@@ -1,7 +1,11 @@
-// Research service: CRUD for research_items + AI idea generation via Claude — added AI task logging
+// Research service: CRUD for research_items + AI idea generation via Claude
+// Updated: 30min in-memory cache for generateResearchIdeas, compressed system prompt
 import { supabase } from '../lib/supabase';
 import { callClaude, logAiTask } from './claude';
 import type { ResearchItem } from '../types';
+
+const CACHE_TTL = 30 * 60 * 1000;
+let researchIdeasCache: { data: ResearchItem[]; timestamp: number } | null = null;
 
 export async function getAllResearchItems(): Promise<ResearchItem[]> {
   const { data } = await supabase
@@ -47,6 +51,10 @@ export async function deleteResearchItem(id: string): Promise<boolean> {
 }
 
 export async function generateResearchIdeas(): Promise<ResearchItem[]> {
+  if (researchIdeasCache && Date.now() - researchIdeasCache.timestamp < CACHE_TTL) {
+    return researchIdeasCache.data;
+  }
+
   const { data: topPosts } = await supabase
     .from('instagram_posts')
     .select('caption, like_count, media_type')
@@ -57,27 +65,7 @@ export async function generateResearchIdeas(): Promise<ResearchItem[]> {
     .map((p, i) => `${i + 1}. "${(p.caption || '').slice(0, 120)}" (${p.like_count} Likes, ${p.media_type})`)
     .join('\n');
 
-  const systemPrompt = `Du bist Joshua Tischer's (@joshmanky) Content-Stratege. Analysiere seine Top-Posts und generiere neue Content-Ideen.
-
-JOSHS ECHTE NISCHE: Psychologische Blockadenloesung fuer "innerlich festgefahrene Potenzialtraeger" 20-30 Jahre. Das Business (Network Marketing / Trading) ist das Vehikel. Das echte Produkt: Identitaetswachstum und Charakterentwicklung.
-
-ANTI-GURU-POSITIONIERUNG: Ruhig, analytisch, kein Hustle-Bro. Fokus IMMER auf das Hindernis (Prokrastination, Overthinking, Identitaetskonflikt) — NICHT auf das Endziel (Geld, Autos, Freiheit). Vertrauen durch Verstaendnis, nicht durch Druck.
-
-JOSHS 12 THEMEN-KATEGORIEN (nutze diese, nicht generische Themen):
-1. Network Marketing Mythen brechen (Positionierung: Community, Skill, System — NIE "MLM")
-2. Unternehmer-Fehler die 90% machen
-3. Identitaetskonflikt und Mindset ("Du bist nicht faul. Du hast einen Identitaetskonflikt.")
-4. System-Denken vs. Zufalls-Handeln
-5. H.I.S.-Methode erklaeren (High Income Skill: lerne -> kopiere Experten -> teile -> verdiene)
-6. Angestellt vs. Unternehmer (Kontrast, kein Angriff auf Jobs)
-7. Buch-Weisheit und psychologische Modelle in 60 Sekunden
-8. Trading-Prozess zeigen (nicht Gewinne prahlen)
-9. Sales als Lebenskompetenz
-10. Ortsunabhaengiges Leben Thailand (zeigen, nicht prahlen)
-11. Geld-Psychologie und finanzielles Denken
-12. Beziehung + Business mit Raquel
-
-Antworte NUR als JSON: [{"title": "...", "hook_type": "statement_hook|question_hook|contrast_hook|identity_hook|number_hook", "platform": "instagram|tiktok|youtube", "reason": "Warum das bei Joshs Zielgruppe viral geht — basierend auf Top-Post-Mustern"}]`;
+  const systemPrompt = `Du bist Content-Stratege fuer Joshua Tischer (@joshmanky). Nische: Anti-Guru Blockadenloesung (H.I.S.-Methode) fuer innerlich festgefahrene 20-30-Jaehrige, Network Marketing + Trading als Vehikel. Generiere Ideen aus seinen Themen: NM-Mythen, Unternehmer-Fehler, Identitaetskonflikt, System-Denken, H.I.S.-Methode, Angestellt-vs-Unternehmer, Buch-Weisheit, Trading-Prozess, Sales, Thailand-Leben, Geld-Psychologie, Beziehung+Business. Antworte NUR als JSON: [{"title":"...","hook_type":"statement_hook|question_hook|contrast_hook|identity_hook|number_hook","platform":"instagram|tiktok|youtube","reason":"..."}]`;
 
   const userMessage = postsContext
     ? `Top performing posts von @joshmanky:\n${postsContext}\n\nGeneriere 6 neue Video-Ideen aus den 12 Themen-Kategorien die auf denselben psychologischen Mustern basieren. Erklaere bei jeder Idee WARUM sie funktionieren wird.`
@@ -109,5 +97,6 @@ Antworte NUR als JSON: [{"title": "...", "hook_type": "statement_hook|question_h
     if (item) created.push(item);
   }
 
+  researchIdeasCache = { data: created, timestamp: Date.now() };
   return created;
 }

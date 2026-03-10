@@ -159,7 +159,7 @@ export default function OverviewTab() {
         .map((h) => `${h.name}: durchschnittlich ${h.value} Likes`)
         .join(', ');
       const result = await callClaude(
-        'Du bist ein Analytics Agent. Analysiere die Hook-Typ Performance-Daten und gib EINEN Satz als Empfehlung. Format: "Dein bester Hook-Typ ist X mit durchschnittlich Y Likes. Erstelle mehr davon." Deutsch. Nur ein Satz.',
+        'Analytics Agent. Gib EINEN Satz: bester Hook-Typ mit Avg Likes und Empfehlung. Deutsch.',
         `Hook-Typ Performance: ${hookSummary}`
       );
       await logAiTask('Analytics Agent', 'hook_insight', result);

@@ -1,6 +1,7 @@
 // CEO Agent service: analyses all performance data and optimizes agent prompts
+// Updated: uses Sonnet model with 800 tokens, no cache (manual trigger only)
 import { supabase } from '../lib/supabase';
-import { callClaude, logAiTask } from './claude';
+import { callClaude, logAiTask, CLAUDE_MODELS } from './claude';
 import { AGENT_REGISTRY } from './agents';
 
 export interface CeoAnalysis {
@@ -43,34 +44,11 @@ export async function runCeoAnalysis(): Promise<CeoAnalysis> {
 
   const agentNames = AGENT_REGISTRY.map(a => a.name).join(', ');
 
-  const CEO_SYSTEM_PROMPT = `Du bist Joshua Tischer's CEO Agent. Seine Nische: Psychologische Blockadenloesung fuer "innerlich festgefahrene Potenzialtraeger" (20-30 Jahre). H.I.S.-Methode als System. Network Marketing + Trading als Vehikel. Anti-Guru Positionierung.
-
-Analysiere die Performance-Daten und AI Task Logs. Triff dann eigenstaendige Entscheidungen welche Agents optimiert werden sollen.
-
-Verfuegbare Agents: ${agentNames}
-
-Antworte als JSON:
-{
-  "performanceSummary": "2-3 Saetze was die Daten zeigen",
-  "agentOptimizations": [
-    {
-      "agentName": "Name des Agents",
-      "reason": "Warum dieser Agent optimiert werden soll (mit Datenbezug)",
-      "suggestedPromptUpdate": "Der spezifische Teil des Prompts der sich aendern soll"
-    }
-  ],
-  "contentPriorities": [
-    "Prioritaet 1 diese Woche (konkret, mit Datenbezug)",
-    "Prioritaet 2 diese Woche",
-    "Prioritaet 3 diese Woche"
-  ]
-}
-
-Nur JSON. Keine anderen Texte.`;
+  const CEO_SYSTEM_PROMPT = `Du bist der CEO Agent fuer Joshua Tischer (@joshmanky). Nische: H.I.S.-Methode, Anti-Guru Blockadenloesung fuer 20-30-Jaehrige, Network Marketing + Trading. Analysiere Performance-Daten, optimiere Agents (${agentNames}) und setze Content-Prioritaeten. Antworte NUR als JSON: {"performanceSummary":"...","agentOptimizations":[{"agentName":"...","reason":"...","suggestedPromptUpdate":"..."}],"contentPriorities":["...","...","..."]}`;
 
   const userMessage = `TOP INSTAGRAM POSTS:\n${igContext || 'Keine Daten'}\n\nTOP TIKTOK VIDEOS:\n${ttContext || 'Keine Daten'}\n\nTOP YOUTUBE VIDEOS:\n${ytContext || 'Keine Daten'}\n\nREZENTE AI TASKS:\n${taskContext || 'Keine Logs'}`;
 
-  const raw = await callClaude(CEO_SYSTEM_PROMPT, userMessage);
+  const raw = await callClaude(CEO_SYSTEM_PROMPT, userMessage, CLAUDE_MODELS.SONNET, 800);
   await logAiTask('CEO Agent', 'agent_optimization_analysis', raw);
 
   try {

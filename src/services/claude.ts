@@ -1,17 +1,28 @@
 // Claude API service: calls the call-claude edge function + AI task logging
+// Updated: callClaude accepts optional model and maxTokens params (default: Haiku, 500)
 import { supabase } from '../lib/supabase';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export async function callClaude(systemPrompt: string, userMessage: string): Promise<string> {
+export const CLAUDE_MODELS = {
+  HAIKU: 'claude-haiku-4-5-20251001',
+  SONNET: 'claude-sonnet-4-20250514',
+} as const;
+
+export async function callClaude(
+  systemPrompt: string,
+  userMessage: string,
+  model: string = CLAUDE_MODELS.HAIKU,
+  maxTokens: number = 500
+): Promise<string> {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/call-claude`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
     },
-    body: JSON.stringify({ systemPrompt, userMessage }),
+    body: JSON.stringify({ systemPrompt, userMessage, model, maxTokens }),
   });
 
   const json = await res.json();

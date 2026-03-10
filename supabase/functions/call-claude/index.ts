@@ -1,4 +1,5 @@
 // Edge function: proxy Claude API calls (avoids CORS issues from browser)
+// Updated: reads model and maxTokens from request body, fallback to Sonnet and 2048
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
@@ -15,7 +16,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { systemPrompt, userMessage } = await req.json();
+    const { systemPrompt, userMessage, model, maxTokens } = await req.json();
     if (!userMessage) {
       return new Response(
         JSON.stringify({ error: "userMessage is required" }),
@@ -48,8 +49,8 @@ Deno.serve(async (req: Request) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2048,
+        model: model || "claude-sonnet-4-20250514",
+        max_tokens: maxTokens || 2048,
         system: systemPrompt || "Du bist ein hilfreicher Assistent.",
         messages: [{ role: "user", content: userMessage }],
       }),

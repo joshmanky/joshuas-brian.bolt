@@ -1,7 +1,11 @@
-// Content Research service: CRUD for research items + AI idea generation — added AI task logging
+// Content Research service: CRUD for research items + AI idea generation
+// Updated: 30min in-memory cache for generateAiIdeas, compressed system prompt
 import { supabase } from '../lib/supabase';
 import { callClaude, logAiTask } from './claude';
 import type { ContentResearchItem, ResearchStatus } from '../types';
+
+const CACHE_TTL = 30 * 60 * 1000;
+let aiIdeasCache: { data: ContentResearchItem[]; timestamp: number } | null = null;
 
 export async function getAllResearchItems(): Promise<ContentResearchItem[]> {
   const { data } = await supabase
@@ -51,6 +55,10 @@ export async function deleteResearchItem(id: string): Promise<boolean> {
 }
 
 export async function generateAiIdeas(): Promise<ContentResearchItem[]> {
+  if (aiIdeasCache && Date.now() - aiIdeasCache.timestamp < CACHE_TTL) {
+    return aiIdeasCache.data;
+  }
+
   const { data: topPosts } = await supabase
     .from('instagram_posts')
     .select('caption, like_count, media_type')
@@ -61,7 +69,7 @@ export async function generateAiIdeas(): Promise<ContentResearchItem[]> {
     .map((p, i) => `${i + 1}. "${p.caption?.slice(0, 120)}" (${p.like_count} Likes, ${p.media_type})`)
     .join('\n');
 
-  const systemPrompt = `Du bist ein Content-Stratege fuer Social Media in den Nischen: Network Marketing, Mindset, Financial Freedom, Trading, Personal Development. Antworte NUR mit einem JSON-Array von genau 5 Objekten. Jedes Objekt hat: "topic" (string, max 80 Zeichen), "hook_suggestion" (string, ein konkreter Hook-Satz), "platform" (einer von: "instagram", "tiktok", "youtube"). Keine Erklaerungen, kein Markdown, nur valides JSON.`;
+  const systemPrompt = `Content-Stratege fuer H.I.S.-Methode, Anti-Guru Blockadenloesung, Network Marketing, Trading. Generiere 5 virale Video-Ideen. Antworte NUR als JSON: [{"topic":"max 80 Zeichen","hook_suggestion":"konkreter Hook-Satz","platform":"instagram|tiktok|youtube"}]`;
 
   const userMessage = postsContext
     ? `Basierend auf diesen Top-5 Instagram Posts:\n${postsContext}\n\nGeneriere 5 frische, virale Video-Ideen die auf diesen Erfolgen aufbauen.`
@@ -90,5 +98,6 @@ export async function generateAiIdeas(): Promise<ContentResearchItem[]> {
     if (item) created.push(item);
   }
 
+  aiIdeasCache = { data: created, timestamp: Date.now() };
   return created;
 }

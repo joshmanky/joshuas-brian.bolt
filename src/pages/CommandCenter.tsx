@@ -1,5 +1,6 @@
 // CommandCenter: CEO Insight + Live Feed + Attribution Quick Entry + Quick Actions
-import { useState, useEffect, useRef } from 'react';
+// Updated: removed auto-trigger for CEO insight, manual refresh only
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, FileText, Sparkles, Zap, Brain, Lightbulb, BarChart3,
@@ -35,7 +36,6 @@ interface FeedItem {
 
 export default function CommandCenter() {
   const navigate = useNavigate();
-  const ceoTriggered = useRef(false);
   const [totalFollowers, setTotalFollowers] = useState(0);
   const [postsThisWeek, setPostsThisWeek] = useState(0);
   const [aiTaskCount, setAiTaskCount] = useState(0);
@@ -48,13 +48,6 @@ export default function CommandCenter() {
   const [attrSuccess, setAttrSuccess] = useState(false);
 
   useEffect(() => { loadDashboard(); }, []);
-
-  useEffect(() => {
-    if (!loading && !ceoTriggered.current) {
-      ceoTriggered.current = true;
-      loadCeoInsight();
-    }
-  }, [loading]);
 
   async function loadDashboard() {
     try {
