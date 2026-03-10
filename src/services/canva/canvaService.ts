@@ -19,7 +19,7 @@ async function generatePKCE(): Promise<{ verifier: string; challenge: string }> 
 
 export async function startCanvaOAuth(): Promise<void> {
   const { verifier, challenge } = await generatePKCE();
-  sessionStorage.setItem('canva_code_verifier', verifier);
+  localStorage.setItem('canva_code_verifier', verifier);
 
   const params = new URLSearchParams({
     code_challenge_method: 's256',

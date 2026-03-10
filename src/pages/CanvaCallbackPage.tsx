@@ -21,7 +21,7 @@ export default function CanvaCallbackPage() {
         return;
       }
 
-      const codeVerifier = sessionStorage.getItem('canva_code_verifier');
+      const codeVerifier = localStorage.getItem('canva_code_verifier');
 
       if (!codeVerifier) {
         setStatus('error');
@@ -31,7 +31,7 @@ export default function CanvaCallbackPage() {
 
       try {
         const ok = await exchangeCanvaCode(code, codeVerifier);
-        sessionStorage.removeItem('canva_code_verifier');
+        localStorage.removeItem('canva_code_verifier');
         if (ok) {
           setStatus('success');
           setTimeout(() => navigate('/settings'), 1500);
