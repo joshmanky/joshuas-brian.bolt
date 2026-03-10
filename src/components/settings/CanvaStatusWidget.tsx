@@ -1,27 +1,19 @@
-// CanvaStatusWidget: shows Canva connection status with connect/disconnect + popup blocker fallback
+// CanvaStatusWidget: shows Canva connection status with connect/disconnect
+// Updated: uses same-tab redirect instead of popup for OAuth
 import { useState, useEffect } from 'react';
 import { isCanvaConnected, startCanvaOAuth, disconnectCanva } from '../../services/canva/canvaService';
 import Button from '../ui/Button';
-import { CheckCircle, XCircle, ExternalLink } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
 
 export default function CanvaStatusWidget() {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [popupBlockedUrl, setPopupBlockedUrl] = useState<string | null>(null);
 
   useEffect(() => {
     isCanvaConnected().then(c => {
       setConnected(c);
       setLoading(false);
     });
-    const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'CANVA_OAUTH_SUCCESS') {
-        isCanvaConnected().then(setConnected);
-        setPopupBlockedUrl(null);
-      }
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
   }, []);
 
   if (loading) {
@@ -51,31 +43,12 @@ export default function CanvaStatusWidget() {
         ) : (
           <Button
             size="sm"
-            onClick={async () => {
-              setPopupBlockedUrl(null);
-              const fallbackUrl = await startCanvaOAuth();
-              if (fallbackUrl) setPopupBlockedUrl(fallbackUrl);
-            }}
+            onClick={() => startCanvaOAuth()}
           >
             Verbinden
           </Button>
         )}
       </div>
-
-      {popupBlockedUrl && !connected && (
-        <div className="bg-jb-warning/5 border border-jb-warning/20 rounded-lg p-2.5">
-          <p className="text-[11px] text-jb-warning mb-1">Popup blockiert. Klicke hier:</p>
-          <a
-            href={popupBlockedUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-jb-accent hover:underline font-medium"
-          >
-            <ExternalLink size={11} />
-            Canva Autorisierung oeffnen
-          </a>
-        </div>
-      )}
     </div>
   );
 }

@@ -17,31 +17,25 @@ async function generatePKCE(): Promise<{ verifier: string; challenge: string }> 
   return { verifier, challenge };
 }
 
-export async function startCanvaOAuth(): Promise<string | null> {
-  console.log('[Canva OAuth] Starting...');
-
-  const popup = window.open('about:blank', 'canva_oauth', 'width=500,height=700,left=200,top=100');
-
+export async function startCanvaOAuth(): Promise<void> {
   const { verifier, challenge } = await generatePKCE();
   sessionStorage.setItem('canva_code_verifier', verifier);
-  const scopes = 'asset:read%20asset:write%20design:content:read%20design:content:write%20design:meta:read%20profile:read';
-  const authUrl = `https://www.canva.com/api/oauth/authorize?code_challenge_method=s256&response_type=code&client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${scopes}&code_challenge=${challenge}`;
 
-  if (popup && !popup.closed) {
-    console.log('[Canva OAuth] Popup opened, navigating to:', authUrl);
-    popup.location.href = authUrl;
-    return null;
-  }
+  const params = new URLSearchParams({
+    code_challenge_method: 's256',
+    response_type: 'code',
+    client_id: CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    scope: 'asset:read asset:write design:content:read design:content:write design:meta:read profile:read',
+    code_challenge: challenge,
+  });
 
-  console.warn('[Canva OAuth] Popup blocked by browser, returning fallback URL');
-  return authUrl;
+  window.location.href = `https://www.canva.com/api/oauth/authorize?${params.toString()}`;
 }
 
-export async function exchangeCanvaCode(code: string): Promise<boolean> {
-  const verifier = sessionStorage.getItem('canva_code_verifier');
-  if (!verifier) return false;
+export async function exchangeCanvaCode(code: string, codeVerifier: string): Promise<boolean> {
   const { data, error } = await supabase.functions.invoke('canva-token-exchange', {
-    body: { code, code_verifier: verifier, redirect_uri: REDIRECT_URI },
+    body: { code, code_verifier: codeVerifier, redirect_uri: REDIRECT_URI },
   });
   if (error || !data?.access_token) return false;
   await supabase.from('api_keys').upsert(
@@ -54,7 +48,6 @@ export async function exchangeCanvaCode(code: string): Promise<boolean> {
       { onConflict: 'platform' }
     );
   }
-  sessionStorage.removeItem('canva_code_verifier');
   return true;
 }
 
