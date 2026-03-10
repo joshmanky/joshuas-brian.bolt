@@ -84,6 +84,10 @@ export interface PipelineCard {
   hook_type: string;
   status: PipelineStatus;
   script_content: string | null;
+  caption: string | null;
+  hashtags: string | null;
+  canva_design_url: string | null;
+  scheduled_date: string | null;
   position: number;
   created_at: string;
   updated_at: string;
@@ -97,6 +101,7 @@ export interface BrainDocument {
   extracted_quotes: string[];
   extracted_insights: string[];
   full_text: string;
+  type: string;
   created_at: string;
 }
 

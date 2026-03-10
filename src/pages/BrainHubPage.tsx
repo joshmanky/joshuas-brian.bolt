@@ -1,13 +1,16 @@
-// BrainHubPage: Brain & Wissen hub — Wissen + Lightbulb Archiv + SOPs
+// BrainHubPage: Brain & Wissen hub — Wissen + Video Transkript + Lightbulb Archiv + SOPs
+// Updated: added Video Transkript tab with transcript input and Brain navigation
 import { useSearchParams } from 'react-router-dom';
-import { Brain, Lightbulb, BookOpen } from 'lucide-react';
+import { Brain, Lightbulb, BookOpen, Video } from 'lucide-react';
 import TabBar from '../components/ui/TabBar';
 import WissenTab from '../components/brain/WissenTab';
+import VideoTranscriptSection from '../components/brain/VideoTranscriptSection';
 import LightbulbArchiveTab from '../components/brain/LightbulbArchiveTab';
 import SopsTab from '../components/brain/SopsTab';
 
 const TABS = [
   { key: 'wissen', label: 'Wissen', icon: <Brain size={15} /> },
+  { key: 'transkript', label: 'Video Transkript', icon: <Video size={15} /> },
   { key: 'archiv', label: 'Lightbulb Archiv', icon: <Lightbulb size={15} /> },
   { key: 'sops', label: 'SOPs', icon: <BookOpen size={15} /> },
 ];
@@ -28,13 +31,14 @@ export default function BrainHubPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-jb-text">Brain & Wissen</h1>
-          <p className="text-sm text-jb-text-secondary">Knowledge Base, Archiv, SOPs</p>
+          <p className="text-sm text-jb-text-secondary">Knowledge Base, Transkripte, Archiv, SOPs</p>
         </div>
       </div>
 
       <TabBar tabs={TABS} activeTab={activeTab} onChange={handleTabChange} />
 
       {activeTab === 'wissen' && <WissenTab />}
+      {activeTab === 'transkript' && <VideoTranscriptSection />}
       {activeTab === 'archiv' && <LightbulbArchiveTab />}
       {activeTab === 'sops' && <SopsTab />}
     </div>

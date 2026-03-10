@@ -1,11 +1,12 @@
 // PipelinePage: Kanban board with drag-and-drop content pipeline
-// Updated: uses Sonnet model with 1000 tokens for script generation
+// Updated: new detail modal with caption/hashtags/canva/date; published auto-logs to ai_tasks_log
 import { useState, useEffect, useCallback } from 'react';
 import { DndContext, DragOverlay, closestCorners, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
 import { Kanban, Plus } from 'lucide-react';
 import KanbanColumn from '../components/pipeline/KanbanColumn';
 import KanbanCard from '../components/pipeline/KanbanCard';
+import PipelineDetailModal from '../components/pipeline/PipelineDetailModal';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -66,9 +67,7 @@ export default function PipelinePage() {
       await logAiTask('Pipeline Script Agent', 'pipeline_script_generation', result);
       await updateCard(card.id, { script_content: result, status: 'skript_fertig' });
       loadCards();
-    } catch {
-      // silent fail
-    } finally {
+    } catch {} finally {
       setGeneratingId(null);
     }
   };
@@ -110,7 +109,15 @@ export default function PipelinePage() {
     const columnCards = getColumnCards(card.status);
     const position = columnCards.findIndex((c) => c.id === card.id);
     await moveCard(card.id, card.status, position >= 0 ? position : 0);
+
+    if (card.status === 'published') {
+      await logAiTask('Pipeline', 'content_published', `Post veroeffentlicht: ${card.title}`);
+    }
   };
+
+  function handleDetailUpdated() {
+    loadCards();
+  }
 
   if (loading) return <LoadingSpinner />;
 
@@ -183,30 +190,11 @@ export default function PipelinePage() {
         </div>
       </Modal>
 
-      <Modal open={!!detailCard} onClose={() => setDetailCard(null)} title={detailCard?.title || ''}>
-        {detailCard && (
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <span className="text-xs text-jb-text-muted">Plattform:</span>
-              <span className="text-xs text-jb-text">{detailCard.platform}</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-xs text-jb-text-muted">Hook:</span>
-              <span className="text-xs text-jb-text">{HOOK_TYPE_LABELS[detailCard.hook_type as HookType] || detailCard.hook_type}</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-xs text-jb-text-muted">Status:</span>
-              <span className="text-xs text-jb-text">{detailCard.status}</span>
-            </div>
-            {detailCard.script_content && (
-              <div className="bg-jb-bg border border-jb-border rounded-lg p-4">
-                <p className="text-xs font-semibold text-jb-accent mb-2">Script</p>
-                <p className="text-sm text-jb-text whitespace-pre-wrap leading-relaxed">{detailCard.script_content}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+      <PipelineDetailModal
+        card={detailCard}
+        onClose={() => setDetailCard(null)}
+        onUpdated={handleDetailUpdated}
+      />
     </div>
   );
 }

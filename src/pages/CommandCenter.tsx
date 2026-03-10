@@ -1,10 +1,10 @@
-// CommandCenter: CEO Insight + Live Feed + Attribution Quick Entry + Quick Actions
-// Updated: removed auto-trigger for CEO insight, manual refresh only
+// CommandCenter: CEO Insight + Heute-Cockpit + Live Feed + Attribution + Quick Actions
+// Updated: added Heute section with scheduled/published pipeline cards for today
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, FileText, Sparkles, Zap, Brain, Lightbulb, BarChart3,
-  Instagram, Music2, Youtube, RefreshCw, Send,
+  Instagram, Music2, Youtube, RefreshCw, Send, Calendar, CheckCircle2, Clock,
 } from 'lucide-react';
 import StatCard from '../components/ui/StatCard';
 import Button from '../components/ui/Button';
@@ -13,7 +13,9 @@ import Select from '../components/ui/Select';
 import { supabase } from '../lib/supabase';
 import { runCeoAnalysis, type CeoAnalysis } from '../services/ceoAgent';
 import { createAttribution } from '../services/attribution';
-import { formatNumber, formatTimeAgo, getPlatformTextColor } from '../lib/utils';
+import { getScheduledForToday, getPublishedToday } from '../services/pipeline';
+import { formatNumber, formatTimeAgo, getPlatformTextColor, getPlatformColor } from '../lib/utils';
+import type { PipelineCard } from '../types';
 
 const CHANNEL_OPTIONS = [
   { value: '', label: 'Kanal waehlen...' },
@@ -46,12 +48,14 @@ export default function CommandCenter() {
   const [attrForm, setAttrForm] = useState({ lead_name: '', channel: '', content_title: '', revenue: '' });
   const [attrSaving, setAttrSaving] = useState(false);
   const [attrSuccess, setAttrSuccess] = useState(false);
+  const [scheduledToday, setScheduledToday] = useState<PipelineCard[]>([]);
+  const [publishedCount, setPublishedCount] = useState(0);
 
   useEffect(() => { loadDashboard(); }, []);
 
   async function loadDashboard() {
     try {
-      const [igData, ttData, ytData, igPosts, ttVideos, ytVideos, aiTasks] = await Promise.all([
+      const [igData, ttData, ytData, igPosts, ttVideos, ytVideos, aiTasks, scheduled, published] = await Promise.all([
         supabase.from('instagram_data').select('followers_count').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('tiktok_data').select('followers').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('youtube_data').select('subscribers').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
@@ -59,9 +63,13 @@ export default function CommandCenter() {
         supabase.from('tiktok_videos').select('video_id, description, likes, views, thumbnail_url, created_at').order('created_at', { ascending: false }).limit(10),
         supabase.from('youtube_videos').select('yt_id, title, likes, views, thumbnail_url, published_at').order('published_at', { ascending: false }).limit(10),
         supabase.from('ai_tasks_log').select('id', { count: 'exact', head: true }),
+        getScheduledForToday(),
+        getPublishedToday(),
       ]);
 
       setTotalFollowers((igData.data?.followers_count || 0) + (ttData.data?.followers || 0) + (ytData.data?.subscribers || 0));
+      setScheduledToday(scheduled);
+      setPublishedCount(published);
 
       const allPosts: FeedItem[] = [];
       (igPosts.data || []).forEach((p) => allPosts.push({ id: p.ig_id, platform: 'instagram', text: p.caption || '', likes: p.like_count, timestamp: p.timestamp, thumbnail: p.thumbnail_url }));
@@ -73,7 +81,7 @@ export default function CommandCenter() {
       const oneWeekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
       setPostsThisWeek(allPosts.filter((p) => p.timestamp > oneWeekAgo).length);
       setAiTaskCount(aiTasks.count || 0);
-    } catch { /* silent */ } finally { setLoading(false); }
+    } catch {} finally { setLoading(false); }
   }
 
   async function loadCeoInsight() {
@@ -99,7 +107,7 @@ export default function CommandCenter() {
       setAttrForm({ lead_name: '', channel: '', content_title: '', revenue: '' });
       setAttrSuccess(true);
       setTimeout(() => setAttrSuccess(false), 2000);
-    } catch { /* silent */ } finally { setAttrSaving(false); }
+    } catch {} finally { setAttrSaving(false); }
   }
 
   const getPlatformIcon = (platform: string) => {
@@ -139,6 +147,70 @@ export default function CommandCenter() {
         <StatCard label="Posts diese Woche" value={postsThisWeek} icon={<FileText size={15} />} />
         <StatCard label="AI Tasks" value={aiTaskCount} icon={<Sparkles size={15} />} />
         <StatCard label="CEO Status" value={ceoLoading ? '...' : ceoAnalysis ? 'Aktiv' : 'Offline'} icon={<Brain size={15} />} subtitle={ceoAnalysis ? formatTimeAgo(ceoAnalysis.generatedAt) : undefined} />
+      </div>
+
+      <div className="bg-jb-card border border-jb-accent/20 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-jb-text flex items-center gap-2">
+            <Calendar size={14} className="text-jb-accent" /> Heute
+          </h3>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <Clock size={12} className="text-jb-warning" />
+              <span className="text-xs text-jb-text-secondary">{scheduledToday.length} geplant</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <CheckCircle2 size={12} className="text-jb-success" />
+              <span className="text-xs text-jb-text-secondary">{publishedCount} veroeffentlicht</span>
+            </div>
+          </div>
+        </div>
+
+        {scheduledToday.length === 0 && publishedCount === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-sm text-jb-text-muted mb-3">Keine Posts fuer heute geplant.</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Sparkles size={14} />}
+              onClick={() => navigate('/studio')}
+            >
+              Post fuer heute erstellen
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {scheduledToday.map((card) => (
+              <div
+                key={card.id}
+                className="flex items-center gap-3 p-2.5 bg-jb-bg rounded-lg hover:bg-jb-card-hover transition-colors cursor-pointer"
+                onClick={() => navigate('/pipeline')}
+              >
+                <div className={`w-2 h-2 rounded-full ${getPlatformColor(card.platform)}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-jb-text truncate">{card.title}</p>
+                </div>
+                <Badge color="bg-jb-warning/10 text-jb-warning">Scheduled</Badge>
+              </div>
+            ))}
+            {scheduledToday.length === 0 && publishedCount > 0 && (
+              <p className="text-sm text-jb-success text-center py-2">
+                {publishedCount} Post{publishedCount > 1 ? 's' : ''} heute veroeffentlicht!
+              </p>
+            )}
+            <div className="pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Sparkles size={14} />}
+                onClick={() => navigate('/studio')}
+                className="w-full"
+              >
+                Neuen Post erstellen
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -252,16 +324,16 @@ export default function CommandCenter() {
           <div className="bg-jb-card border border-jb-border rounded-xl p-5">
             <h3 className="text-sm font-semibold text-jb-text mb-3">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="secondary" size="md" className="w-full justify-start" icon={<Sparkles size={16} />} onClick={() => navigate('/studio?tab=skript')}>
+              <Button variant="secondary" size="md" className="w-full justify-start" icon={<Sparkles size={16} />} onClick={() => navigate('/studio')}>
                 Skript
               </Button>
-              <Button variant="secondary" size="md" className="w-full justify-start" icon={<Lightbulb size={16} />} onClick={() => navigate('/studio?tab=ideen')}>
+              <Button variant="secondary" size="md" className="w-full justify-start" icon={<Lightbulb size={16} />} onClick={() => navigate('/studio')}>
                 Idee
               </Button>
               <Button variant="secondary" size="md" className="w-full justify-start" icon={<BarChart3 size={16} />} onClick={() => navigate('/platforms')}>
                 Plattformen
               </Button>
-              <Button variant="secondary" size="md" className="w-full justify-start" icon={<Brain size={16} />} onClick={() => navigate('/brain?tab=upload')}>
+              <Button variant="secondary" size="md" className="w-full justify-start" icon={<Brain size={16} />} onClick={() => navigate('/brain?tab=transkript')}>
                 Brain fuettern
               </Button>
             </div>

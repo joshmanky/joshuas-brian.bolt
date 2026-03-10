@@ -1,5 +1,5 @@
-// Brain service: upload documents, extract insights, search content
-// Updated: 30min in-memory cache for generateContentFromBrain, compressed system prompts
+// Brain service: upload documents, extract insights, search content, save transcripts
+// Updated: added saveTranscript for video_transcript type; 30min cache for generateContentFromBrain
 import { supabase } from '../lib/supabase';
 import { callClaude, logAiTask } from './claude';
 import type { BrainDocument } from '../types';
@@ -108,4 +108,42 @@ export async function generateContentFromBrain(): Promise<string> {
 
   brainContentCache = { data: result, timestamp: Date.now() };
   return result;
+}
+
+export async function saveTranscript(
+  title: string,
+  text: string
+): Promise<BrainDocument | null> {
+  let quotes: string[] = [];
+  let insights: string[] = [];
+
+  try {
+    const extractResult = await callClaude(
+      'Extrahiere 5 Zitate und 3 Insights aus dem Video-Transkript. Antworte NUR als JSON: {"quotes":["..."],"insights":["..."]}',
+      text.slice(0, 8000)
+    );
+    await logAiTask('Brain Extract Agent', 'transcript_extraction', extractResult);
+    const parsed = JSON.parse(extractResult.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+    quotes = parsed.quotes || [];
+    insights = parsed.insights || [];
+  } catch {
+    quotes = [];
+    insights = ['Extraktion nicht moeglich'];
+  }
+
+  const { data } = await supabase
+    .from('brain_documents')
+    .insert({
+      filename: title || 'Video Transkript',
+      category: 'Video Transkript',
+      file_path: '',
+      extracted_quotes: quotes,
+      extracted_insights: insights,
+      full_text: text.slice(0, 50000),
+      type: 'video_transcript',
+    })
+    .select()
+    .maybeSingle();
+
+  return data as BrainDocument | null;
 }

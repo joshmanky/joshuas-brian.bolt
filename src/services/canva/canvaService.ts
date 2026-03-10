@@ -1,5 +1,5 @@
 // Canva Connect API service: OAuth, asset upload, design creation, export, master workflow
-// Updated: simplified upsert — removed delete+insert fallback
+// Updated: added createCanvaDesign for preset-based thumbnail/cover creation
 import { supabase } from '../../lib/supabase';
 
 const CANVA_API = 'https://api.canva.com/rest/v1';
@@ -226,4 +226,39 @@ export async function runBrollWorkflow(
   } catch (err) {
     return { success: false, error: String(err), steps };
   }
+}
+
+export async function createCanvaDesign(
+  hookText: string,
+  platform: string
+): Promise<{ designUrl: string; designId: string } | null> {
+  const token = await getCanvaToken();
+  if (!token) throw new Error('Nicht mit Canva verbunden');
+
+  const presetName = platform === 'youtube'
+    ? 'YouTubeThumbnail'
+    : platform === 'tiktok'
+      ? 'TikTokVideo'
+      : 'InstagramPost';
+
+  const res = await fetch(`${CANVA_API}/designs`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      design_type: { type: 'preset', name: presetName },
+      title: hookText.substring(0, 50),
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Design-Erstellung fehlgeschlagen: ${err}`);
+  }
+
+  const { design } = await res.json();
+  const designUrl = design.urls?.edit_url || `https://www.canva.com/design/${design.id}/edit`;
+  return { designUrl, designId: design.id };
 }

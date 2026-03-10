@@ -188,10 +188,9 @@ export default function BrollTab() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={async () => {
+              onClick={() => {
                 setPopupBlockedUrl(null);
-                const fallbackUrl = await startCanvaOAuth();
-                if (fallbackUrl) setPopupBlockedUrl(fallbackUrl);
+                startCanvaOAuth();
               }}
             >
               Mit Canva verbinden

@@ -84,3 +84,5 @@ FUNNEL-LOGIK (97% Markt):
 
 STIL: Realtalk, direkt, wie 1:1 Gespraech. Kurze Saetze. Gesprochene Sprache. Max 60 Sekunden.
 Wenn Performance-Daten verfuegbar: analysiere welche Hooks funktioniert haben und baue darauf auf.`;
+
+export const CAPTION_SYSTEM_PROMPT = `Du bist ein Social-Media-Texter fuer Joshua Tischer (@joshmanky). Schreibe eine Caption und Hashtags fuer ein Social-Media-Video basierend auf dem Skript. Die Caption soll kurz, emotional und mit einem CTA enden. Antworte NUR als JSON: {"caption":"...","hashtags":"#tag1 #tag2 #tag3"}`;
