@@ -1,16 +1,18 @@
-// StudioPage: Content Studio hub — Ideen + Skript + Lightbulb with cross-tab data flow
+// StudioPage: Content Studio hub — Ideen + Skript + Lightbulb + B-Roll with cross-tab data flow
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Sparkles, Lightbulb, Zap } from 'lucide-react';
+import { Sparkles, Lightbulb, Zap, Film } from 'lucide-react';
 import TabBar from '../components/ui/TabBar';
 import IdeasTab from '../components/studio/IdeasTab';
 import ScriptTab from '../components/studio/ScriptTab';
 import LightbulbTab from '../components/studio/LightbulbTab';
+import BrollTab from '../components/studio/BrollTab';
 
 const TABS = [
   { key: 'ideen', label: 'Ideen', icon: <Lightbulb size={15} /> },
   { key: 'skript', label: 'Skript', icon: <Sparkles size={15} /> },
   { key: 'lightbulb', label: 'Lightbulb', icon: <Zap size={15} /> },
+  { key: 'broll', label: 'B-Roll', icon: <Film size={15} /> },
 ];
 
 export default function StudioPage() {
@@ -75,6 +77,8 @@ export default function StudioPage() {
       {activeTab === 'lightbulb' && (
         <LightbulbTab onUseAsScript={handleUseAsScript} />
       )}
+
+      {activeTab === 'broll' && <BrollTab />}
     </div>
   );
 }

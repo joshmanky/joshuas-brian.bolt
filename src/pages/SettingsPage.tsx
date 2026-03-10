@@ -1,7 +1,8 @@
-// SettingsPage: API key management for all platforms
+// SettingsPage: API key management + Canva Connect status
 import { useState, useEffect } from 'react';
-import { Key, Instagram, Music2, Youtube, Brain, Eye, EyeOff, Check, AlertCircle } from 'lucide-react';
+import { Key, Instagram, Music2, Youtube, Brain, Eye, EyeOff, Check, AlertCircle, Film } from 'lucide-react';
 import Button from '../components/ui/Button';
+import CanvaStatusWidget from '../components/settings/CanvaStatusWidget';
 import { getAllApiKeys, saveApiKey } from '../services/apiKeys';
 import { maskApiKey } from '../lib/utils';
 
@@ -93,6 +94,19 @@ export default function SettingsPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          <div className="bg-jb-card border border-jb-border rounded-xl p-5 space-y-3 transition-colors hover:border-jb-border-light">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-jb-accent/10 flex items-center justify-center">
+                <Film size={16} className="text-jb-accent" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-jb-text">Canva Connect API</h3>
+                <p className="text-xs text-jb-text-muted">Fuer automatischen B-Roll Export</p>
+              </div>
+            </div>
+            <CanvaStatusWidget />
+          </div>
+
           {KEY_FIELDS.map((field) => {
             const hasKey = !!keys[field.platform];
             return (

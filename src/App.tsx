@@ -1,4 +1,4 @@
-// App: 7-hub routing architecture (Command Center, Studio, Platforms, Pipeline, Brain, Agents, Settings)
+// App: 7-hub routing + Canva OAuth callback
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import CommandCenter from './pages/CommandCenter';
@@ -8,11 +8,13 @@ import PipelinePage from './pages/PipelinePage';
 import BrainHubPage from './pages/BrainHubPage';
 import AgentsPage from './pages/AgentsPage';
 import SettingsPage from './pages/SettingsPage';
+import CanvaCallbackPage from './pages/CanvaCallbackPage';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/oauth/callback" element={<CanvaCallbackPage />} />
         <Route element={<Layout />}>
           <Route path="/" element={<CommandCenter />} />
           <Route path="/studio" element={<StudioPage />} />
