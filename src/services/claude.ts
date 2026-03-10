@@ -36,10 +36,11 @@ export async function logAiTask(
   result: string
 ): Promise<void> {
   try {
+    const clean = result.replace(/```json/g, '').replace(/```/g, '').trim();
     await supabase.from('ai_tasks_log').insert({
       agent_name: agentName,
       task_type: taskType,
-      output_summary: result.slice(0, 100),
+      output_summary: clean.slice(0, 100),
       status: 'completed',
     });
   } catch {

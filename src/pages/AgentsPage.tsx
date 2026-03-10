@@ -1,4 +1,5 @@
-// AgentsPage: Agent Control + Agent Hiring — 2-tab hub with CEO auto-run and hiring workflow
+// AgentsPage: Agent Control + Agent Hiring — 2-tab hub with manual CEO analysis and hiring workflow
+// Updated: removed CEO auto-trigger on page load, manual button only
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Bot, UserPlus, Cpu, Activity, CheckCircle2, Clock, Wrench, Settings2 } from 'lucide-react';
@@ -11,7 +12,6 @@ import AgentConfigPanel from '../components/agents/AgentConfigPanel';
 import AgentHiringTab from '../components/agents/AgentHiringTab';
 import { AGENT_REGISTRY, getAiTaskLogs } from '../services/agents';
 import { runCeoAnalysis, type CeoAnalysis } from '../services/ceoAgent';
-import { supabase } from '../lib/supabase';
 import { formatTimeAgo } from '../lib/utils';
 import type { AiTaskLog } from '../types';
 
@@ -47,36 +47,12 @@ export default function AgentsPage() {
     loadLogs();
   }, []);
 
-  useEffect(() => {
-    checkAndRunCeo();
-  }, []);
-
   async function loadLogs() {
     try {
       const logs = await getAiTaskLogs();
       setTaskLogs(logs);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function checkAndRunCeo() {
-    const { data: lastCeoRun } = await supabase
-      .from('ai_tasks_log')
-      .select('created_at')
-      .eq('agent_name', 'CEO Agent')
-      .eq('task_type', 'full_system_optimization')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const lastRun = lastCeoRun?.created_at ? new Date(lastCeoRun.created_at) : null;
-    const daysSinceRun = lastRun ? (Date.now() - lastRun.getTime()) / 86400000 : 999;
-    if (daysSinceRun > 7) {
-      setCeoLoading(true);
-      try {
-        const analysis = await runCeoAnalysis();
-        setCeoAnalysis(analysis);
-      } catch {} finally { setCeoLoading(false); }
     }
   }
 
