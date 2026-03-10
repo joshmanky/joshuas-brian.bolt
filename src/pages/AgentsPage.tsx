@@ -1,11 +1,13 @@
-// AgentsPage: Agent Control with real system prompts, test buttons, and per-agent task logs
+// AgentsPage: Agent Control with CEO Agent analysis, real system prompts, test buttons, task logs
 import { useState, useEffect } from 'react';
 import { Bot, Cpu, Activity, CheckCircle2, Clock, Wrench, Settings2 } from 'lucide-react';
 import StatCard from '../components/ui/StatCard';
 import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import AgentConfigPanel from '../components/agents/AgentConfigPanel';
 import { AGENT_REGISTRY, getAiTaskLogs } from '../services/agents';
+import { runCeoAnalysis, type CeoAnalysis } from '../services/ceoAgent';
 import { formatTimeAgo } from '../lib/utils';
 import type { AiTaskLog } from '../types';
 
@@ -27,6 +29,8 @@ const STATUS_COLOR: Record<string, string> = {
 export default function AgentsPage() {
   const [taskLogs, setTaskLogs] = useState<AiTaskLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ceoAnalysis, setCeoAnalysis] = useState<CeoAnalysis | null>(null);
+  const [ceoLoading, setCeoLoading] = useState(false);
 
   useEffect(() => {
     loadLogs();
@@ -38,6 +42,20 @@ export default function AgentsPage() {
       setTaskLogs(logs);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCeoAnalysis() {
+    setCeoLoading(true);
+    try {
+      const analysis = await runCeoAnalysis();
+      setCeoAnalysis(analysis);
+      const logs = await getAiTaskLogs();
+      setTaskLogs(logs);
+    } catch {
+      // silent
+    } finally {
+      setCeoLoading(false);
     }
   }
 
@@ -67,7 +85,7 @@ export default function AgentsPage() {
 
       <div>
         <h3 className="text-sm font-semibold text-jb-text mb-3">Agenten ({AGENT_REGISTRY.length})</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {AGENT_REGISTRY.map((agent) => {
             const StatusIcon = STATUS_ICON[agent.status] || Activity;
             return (
@@ -92,6 +110,12 @@ export default function AgentsPage() {
           })}
         </div>
       </div>
+
+      <CeoAgentSection
+        analysis={ceoAnalysis}
+        loading={ceoLoading}
+        onAnalyze={handleCeoAnalysis}
+      />
 
       <div>
         <h3 className="text-sm font-semibold text-jb-text mb-3 flex items-center gap-2">
@@ -134,6 +158,88 @@ export default function AgentsPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function CeoAgentSection({
+  analysis,
+  loading,
+  onAnalyze,
+}: {
+  analysis: CeoAnalysis | null;
+  loading: boolean;
+  onAnalyze: () => void;
+}) {
+  return (
+    <div className="bg-jb-card border border-jb-accent/30 rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-jb-border bg-jb-accent/5">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-jb-accent/20 flex items-center justify-center">
+            <span className="text-jb-accent text-xs font-bold">CEO</span>
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-jb-text">CEO Agent -- System-Optimierung</h2>
+            <p className="text-xs text-jb-text-secondary">Analysiert alle Daten und optimiert die anderen Agents automatisch</p>
+          </div>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          loading={loading}
+          onClick={onAnalyze}
+        >
+          {loading ? 'Analysiert...' : 'Jetzt analysieren'}
+        </Button>
+      </div>
+
+      {analysis ? (
+        <div className="p-5 space-y-4">
+          <div>
+            <h3 className="text-xs font-semibold text-jb-text-secondary uppercase tracking-wider mb-2">Performance-Zusammenfassung</h3>
+            <p className="text-sm text-jb-text leading-relaxed">{analysis.performanceSummary}</p>
+          </div>
+
+          {analysis.contentPriorities.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold text-jb-text-secondary uppercase tracking-wider mb-2">Content-Prioritaeten diese Woche</h3>
+              <div className="space-y-2">
+                {analysis.contentPriorities.map((p, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="text-jb-accent font-bold text-xs mt-0.5">#{i + 1}</span>
+                    <p className="text-sm text-jb-text">{p}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {analysis.agentOptimizations.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold text-jb-text-secondary uppercase tracking-wider mb-2">Agent-Optimierungen</h3>
+              <div className="space-y-3">
+                {analysis.agentOptimizations.map((opt, i) => (
+                  <div key={i} className="bg-jb-bg rounded-lg p-3 border border-jb-border">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-semibold text-jb-accent">{opt.agentName}</span>
+                    </div>
+                    <p className="text-xs text-jb-text-secondary mb-2">{opt.reason}</p>
+                    <p className="text-xs text-jb-text font-mono bg-jb-card rounded p-2 leading-relaxed">{opt.suggestedPromptUpdate}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="text-[10px] text-jb-text-muted">
+            Generiert: {new Date(analysis.generatedAt).toLocaleString('de-DE')}
+          </p>
+        </div>
+      ) : (
+        <div className="p-5 text-center text-sm text-jb-text-secondary">
+          Klicke "Jetzt analysieren" -- der CEO Agent prueft alle Daten und optimiert das System.
+        </div>
+      )}
     </div>
   );
 }
