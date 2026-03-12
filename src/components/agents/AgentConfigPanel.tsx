@@ -35,7 +35,7 @@ export default function AgentConfigPanel({ agent }: AgentConfigPanelProps) {
         ? `${agent.testMessage}\n\n--- DATEN ---\n${context}`
         : agent.testMessage;
 
-      const result = await callClaude(agent.systemPrompt, message);
+      const result = await callClaude(agent.systemPrompt, message, undefined, undefined, agent.name);
       await logAiTask(agent.name, 'agent_test', result);
       setTestResult(result);
 

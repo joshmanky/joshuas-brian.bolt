@@ -59,7 +59,7 @@ export default function AgentHiringTab() {
     if (!taskInput.trim()) return;
     setSubmitting(true);
     try {
-      const raw = await callClaude(HIRING_SYSTEM_PROMPT, taskInput.trim());
+      const raw = await callClaude(HIRING_SYSTEM_PROMPT, taskInput.trim(), undefined, undefined, 'CEO Agent');
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('Kein JSON erhalten');
       const parsed = JSON.parse(jsonMatch[0]);
@@ -91,7 +91,7 @@ export default function AgentHiringTab() {
   async function handleTest(proposal: AgentProposal) {
     setTestingId(proposal.id);
     try {
-      const result = await callClaude(proposal.system_prompt, proposal.test_message);
+      const result = await callClaude(proposal.system_prompt, proposal.test_message, undefined, undefined, proposal.name);
       setTestResults((prev) => ({ ...prev, [proposal.id]: result }));
     } catch {
       setTestResults((prev) => ({ ...prev, [proposal.id]: 'Test fehlgeschlagen.' }));

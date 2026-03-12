@@ -40,7 +40,7 @@ export default function AgentArchitectSection({ onProposalAdded }: AgentArchitec
       const agentList = AGENT_REGISTRY.map(a => `${a.name}: ${a.role} (${a.status})`).join(', ');
       const userMsg = `Aktueller Agent Stack (${AGENT_REGISTRY.length} Agents): ${agentList}. Schlage 3-5 neue Agents vor die fehlen.`;
 
-      const raw = await callClaude(ARCHITECT_SYSTEM_PROMPT, userMsg);
+      const raw = await callClaude(ARCHITECT_SYSTEM_PROMPT, userMsg, undefined, undefined, 'Agent Architect');
       await logAiTask('Agent Architect', 'agent_architecture_analysis', raw);
 
       const jsonMatch = raw.match(/\[[\s\S]*\]/);

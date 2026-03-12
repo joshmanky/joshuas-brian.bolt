@@ -59,7 +59,7 @@ export default function BrollTab() {
 
     try {
       const userMsg = `Generiere B-Roll Text-Overlays zum Thema: "${topic}"`;
-      const result = await callClaude(BROLL_SYSTEM_PROMPT, userMsg);
+      const result = await callClaude(BROLL_SYSTEM_PROMPT, userMsg, undefined, undefined, 'B-Roll Text Agent');
       await logAiTask('B-Roll Text Agent', 'broll_text_generation', result);
 
       const parsed = JSON.parse(result);

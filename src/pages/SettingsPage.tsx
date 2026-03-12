@@ -1,8 +1,10 @@
-// SettingsPage: API key management + Canva Connect status
+// SettingsPage: API key management + Canva Connect + Token usage dashboard
+// Updated: added Token-Nutzung tab with cost breakdown by agent, model, and daily trends
 import { useState, useEffect } from 'react';
-import { Key, Instagram, Music2, Youtube, Brain, Eye, EyeOff, Check, AlertCircle, Film } from 'lucide-react';
+import { Key, Instagram, Music2, Youtube, Brain, Eye, EyeOff, Check, AlertCircle, Film, Coins } from 'lucide-react';
 import Button from '../components/ui/Button';
 import CanvaStatusWidget from '../components/settings/CanvaStatusWidget';
+import TokenUsageDashboard from '../components/settings/TokenUsageDashboard';
 import { getAllApiKeys, saveApiKey } from '../services/apiKeys';
 import { maskApiKey } from '../lib/utils';
 
@@ -45,7 +47,10 @@ const KEY_FIELDS: KeyField[] = [
   },
 ];
 
+type SettingsTab = 'keys' | 'tokens';
+
 export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState<SettingsTab>('keys');
   const [keys, setKeys] = useState<Record<string, string>>({});
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
@@ -76,99 +81,130 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-jb-accent/10 flex items-center justify-center">
           <Key size={20} className="text-jb-accent" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-jb-text">Settings</h1>
-          <p className="text-sm text-jb-text-secondary">API Keys und Zugangsdaten verwalten</p>
+          <p className="text-sm text-jb-text-secondary">API Keys und Token-Nutzung verwalten</p>
         </div>
       </div>
 
-      {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="shimmer h-32 rounded-xl" />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="bg-jb-card border border-jb-border rounded-xl p-5 space-y-3 transition-colors hover:border-jb-border-light">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-jb-accent/10 flex items-center justify-center">
-                <Film size={16} className="text-jb-accent" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-jb-text">Canva Connect API</h3>
-                <p className="text-xs text-jb-text-muted">Fuer automatischen B-Roll Export</p>
-              </div>
+      <div className="flex gap-1 mb-6 bg-jb-bg rounded-lg p-1 border border-jb-border">
+        <button
+          onClick={() => setActiveTab('keys')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
+            activeTab === 'keys'
+              ? 'bg-jb-card text-jb-text shadow-sm border border-jb-border'
+              : 'text-jb-text-muted hover:text-jb-text'
+          }`}
+        >
+          <Key size={14} />
+          API Keys
+        </button>
+        <button
+          onClick={() => setActiveTab('tokens')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
+            activeTab === 'tokens'
+              ? 'bg-jb-card text-jb-text shadow-sm border border-jb-border'
+              : 'text-jb-text-muted hover:text-jb-text'
+          }`}
+        >
+          <Coins size={14} />
+          Token-Nutzung
+        </button>
+      </div>
+
+      {activeTab === 'tokens' && <TokenUsageDashboard />}
+
+      {activeTab === 'keys' && (
+        <>
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="shimmer h-32 rounded-xl" />
+              ))}
             </div>
-            <CanvaStatusWidget />
-          </div>
-
-          {KEY_FIELDS.map((field) => {
-            const hasKey = !!keys[field.platform];
-            return (
-              <div
-                key={field.platform}
-                className="bg-jb-card border border-jb-border rounded-xl p-5 transition-colors hover:border-jb-border-light"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    {field.icon}
-                    <span className="text-sm font-semibold text-jb-text">{field.label}</span>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-jb-card border border-jb-border rounded-xl p-5 space-y-3 transition-colors hover:border-jb-border-light">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-jb-accent/10 flex items-center justify-center">
+                    <Film size={16} className="text-jb-accent" />
                   </div>
-                  {hasKey && (
-                    <div className="flex items-center gap-1.5 text-xs text-jb-success">
-                      <Check size={12} />
-                      Verbunden
-                    </div>
-                  )}
-                  {!hasKey && (
-                    <div className="flex items-center gap-1.5 text-xs text-jb-text-muted">
-                      <AlertCircle size={12} />
-                      Nicht konfiguriert
-                    </div>
-                  )}
-                </div>
-
-                {hasKey && (
-                  <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-jb-bg rounded-lg">
-                    <span className="stat-number text-xs text-jb-text-secondary flex-1">
-                      {showKey[field.platform] ? keys[field.platform] : maskApiKey(keys[field.platform])}
-                    </span>
-                    <button
-                      onClick={() => setShowKey((p) => ({ ...p, [field.platform]: !p[field.platform] }))}
-                      className="text-jb-text-muted hover:text-jb-text transition-colors"
-                    >
-                      {showKey[field.platform] ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
+                  <div>
+                    <h3 className="text-sm font-semibold text-jb-text">Canva Connect API</h3>
+                    <p className="text-xs text-jb-text-muted">Fuer automatischen B-Roll Export</p>
                   </div>
-                )}
-
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    value={inputs[field.platform] || ''}
-                    onChange={(e) => setInputs((p) => ({ ...p, [field.platform]: e.target.value }))}
-                    placeholder={field.placeholder}
-                    className="flex-1 bg-jb-bg border border-jb-border rounded-lg px-3 py-2 text-sm text-jb-text placeholder:text-jb-text-muted focus:outline-none focus:border-jb-accent/50 transition-colors"
-                  />
-                  <Button
-                    size="sm"
-                    loading={saving[field.platform]}
-                    onClick={() => handleSave(field.platform)}
-                    disabled={!inputs[field.platform]?.trim()}
-                  >
-                    {saved[field.platform] ? 'Gespeichert!' : hasKey ? 'Update' : 'Speichern'}
-                  </Button>
                 </div>
-                <p className="text-[11px] text-jb-text-muted mt-2">{field.helpText}</p>
+                <CanvaStatusWidget />
               </div>
-            );
-          })}
-        </div>
+
+              {KEY_FIELDS.map((field) => {
+                const hasKey = !!keys[field.platform];
+                return (
+                  <div
+                    key={field.platform}
+                    className="bg-jb-card border border-jb-border rounded-xl p-5 transition-colors hover:border-jb-border-light"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2.5">
+                        {field.icon}
+                        <span className="text-sm font-semibold text-jb-text">{field.label}</span>
+                      </div>
+                      {hasKey && (
+                        <div className="flex items-center gap-1.5 text-xs text-jb-success">
+                          <Check size={12} />
+                          Verbunden
+                        </div>
+                      )}
+                      {!hasKey && (
+                        <div className="flex items-center gap-1.5 text-xs text-jb-text-muted">
+                          <AlertCircle size={12} />
+                          Nicht konfiguriert
+                        </div>
+                      )}
+                    </div>
+
+                    {hasKey && (
+                      <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-jb-bg rounded-lg">
+                        <span className="stat-number text-xs text-jb-text-secondary flex-1">
+                          {showKey[field.platform] ? keys[field.platform] : maskApiKey(keys[field.platform])}
+                        </span>
+                        <button
+                          onClick={() => setShowKey((p) => ({ ...p, [field.platform]: !p[field.platform] }))}
+                          className="text-jb-text-muted hover:text-jb-text transition-colors"
+                        >
+                          {showKey[field.platform] ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        value={inputs[field.platform] || ''}
+                        onChange={(e) => setInputs((p) => ({ ...p, [field.platform]: e.target.value }))}
+                        placeholder={field.placeholder}
+                        className="flex-1 bg-jb-bg border border-jb-border rounded-lg px-3 py-2 text-sm text-jb-text placeholder:text-jb-text-muted focus:outline-none focus:border-jb-accent/50 transition-colors"
+                      />
+                      <Button
+                        size="sm"
+                        loading={saving[field.platform]}
+                        onClick={() => handleSave(field.platform)}
+                        disabled={!inputs[field.platform]?.trim()}
+                      >
+                        {saved[field.platform] ? 'Gespeichert!' : hasKey ? 'Update' : 'Speichern'}
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-jb-text-muted mt-2">{field.helpText}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

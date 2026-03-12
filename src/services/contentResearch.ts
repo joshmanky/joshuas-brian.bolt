@@ -75,7 +75,7 @@ export async function generateAiIdeas(): Promise<ContentResearchItem[]> {
     ? `Basierend auf diesen Top-5 Instagram Posts:\n${postsContext}\n\nGeneriere 5 frische, virale Video-Ideen die auf diesen Erfolgen aufbauen.`
     : `Generiere 5 frische, virale Video-Ideen fuer die Nischen Network Marketing, Mindset, Financial Freedom, Trading und Personal Development.`;
 
-  const raw = await callClaude(systemPrompt, userMessage);
+  const raw = await callClaude(systemPrompt, userMessage, undefined, undefined, 'Content Research Agent');
   await logAiTask('Content Research Agent', 'content_research_generation', raw);
 
   const jsonMatch = raw.match(/\[[\s\S]*\]/);

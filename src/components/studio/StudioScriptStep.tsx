@@ -80,7 +80,7 @@ export default function StudioScriptStep({
       }
       userMessage += `Erstelle ein virales ${platformLabel} Skript zum Thema: "${topic}". Verwende einen ${hookLabel}. Formatiere klar mit den 5 Phasen: Hook, Situation, Emotion, Mehrwert/Loesung, CTA.`;
 
-      const result = await callClaude(SCRIPT_SYSTEM_PROMPT, userMessage, CLAUDE_MODELS.SONNET, 1000);
+      const result = await callClaude(SCRIPT_SYSTEM_PROMPT, userMessage, CLAUDE_MODELS.SONNET, 1000, 'Script Generation Agent');
       await logAiTask('Script Generation Agent', 'script_generation', result);
       onScriptGenerated(result);
     } catch (e) {

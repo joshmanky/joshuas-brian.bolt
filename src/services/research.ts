@@ -71,7 +71,7 @@ export async function generateResearchIdeas(): Promise<ResearchItem[]> {
     ? `Top performing posts von @joshmanky:\n${postsContext}\n\nGeneriere 6 neue Video-Ideen aus den 12 Themen-Kategorien die auf denselben psychologischen Mustern basieren. Erklaere bei jeder Idee WARUM sie funktionieren wird.`
     : `Generiere 6 Video-Ideen aus Joshs 12 Themen-Kategorien fuer seine Zielgruppe (innerlich festgefahrene 20-30 Jaehrige). Erklaere bei jeder Idee den psychologischen Grund.`;
 
-  const raw = await callClaude(systemPrompt, userMessage);
+  const raw = await callClaude(systemPrompt, userMessage, undefined, undefined, 'Content Research Agent');
   await logAiTask('Content Research Agent', 'research_idea_generation', raw);
 
   const jsonMatch = raw.match(/\[[\s\S]*\]/);

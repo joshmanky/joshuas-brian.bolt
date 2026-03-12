@@ -41,7 +41,8 @@ export default function StudioCaptionStep({
     try {
       const result = await callClaude(
         CAPTION_SYSTEM_PROMPT,
-        `Schreibe Caption und Hashtags fuer dieses Skript:\n\n${script.slice(0, 3000)}`
+        `Schreibe Caption und Hashtags fuer dieses Skript:\n\n${script.slice(0, 3000)}`,
+        undefined, undefined, 'Caption Agent'
       );
       await logAiTask('Caption Agent', 'caption_generation', result);
 

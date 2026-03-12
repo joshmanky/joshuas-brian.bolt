@@ -32,7 +32,7 @@ export async function generateLightbulb(
   kategorie: string
 ): Promise<string> {
   const userMessage = `Thema: ${thema}. Quelle: ${quelle}. Gedanke/Zitat: ${gedanke}. Kategorie: ${kategorie}.`;
-  const result = await callClaude(LIGHTBULB_SYSTEM_PROMPT, userMessage);
+  const result = await callClaude(LIGHTBULB_SYSTEM_PROMPT, userMessage, undefined, undefined, 'Lightbulb Lab Agent');
   await logAiTask('Lightbulb Lab Agent', 'lightbulb_generation', result);
   return result;
 }

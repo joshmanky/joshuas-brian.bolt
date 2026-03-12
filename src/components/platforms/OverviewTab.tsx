@@ -160,7 +160,8 @@ export default function OverviewTab() {
         .join(', ');
       const result = await callClaude(
         'Analytics Agent. Gib EINEN Satz: bester Hook-Typ mit Avg Likes und Empfehlung. Deutsch.',
-        `Hook-Typ Performance: ${hookSummary}`
+        `Hook-Typ Performance: ${hookSummary}`,
+        undefined, undefined, 'Analytics Agent'
       );
       await logAiTask('Analytics Agent', 'hook_insight', result);
       setHookInsight(result);

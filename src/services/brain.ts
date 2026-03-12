@@ -39,7 +39,8 @@ export async function uploadDocument(
   try {
     const extractResult = await callClaude(
       'Extrahiere 5 Zitate und 3 Insights. Antworte NUR als JSON: {"quotes":["..."],"insights":["..."]}',
-      fullText.slice(0, 8000)
+      fullText.slice(0, 8000),
+      undefined, undefined, 'Brain Extract Agent'
     );
     await logAiTask('Brain Extract Agent', 'document_extraction', extractResult);
     const parsed = JSON.parse(extractResult.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
@@ -79,7 +80,8 @@ export async function searchBrain(query: string): Promise<string> {
 
   const result = await callClaude(
     'Wissens-Assistent. Beantworte die Frage praezise anhand des Contents, zitiere relevante Stellen. Deutsch.',
-    `Frage: ${query}\n\nContent:\n${context.slice(0, 12000)}`
+    `Frage: ${query}\n\nContent:\n${context.slice(0, 12000)}`,
+    undefined, undefined, 'Brain Search Agent'
   );
   await logAiTask('Brain Search Agent', 'brain_search', result);
 
@@ -102,7 +104,8 @@ export async function generateContentFromBrain(): Promise<string> {
 
   const result = await callClaude(
     'Content-Stratege. Schlage 5 virale Video-Ideen vor (Titel, Hook-Typ, Beschreibung) basierend auf den Zitaten und Insights. Deutsch.',
-    `Zitate:\n${allQuotes.join('\n')}\n\nInsights:\n${allInsights.join('\n')}`
+    `Zitate:\n${allQuotes.join('\n')}\n\nInsights:\n${allInsights.join('\n')}`,
+    undefined, undefined, 'Brain Content Agent'
   );
   await logAiTask('Brain Content Agent', 'brain_content_generation', result);
 
@@ -120,7 +123,8 @@ export async function saveTranscript(
   try {
     const extractResult = await callClaude(
       'Extrahiere 5 Zitate und 3 Insights aus dem Video-Transkript. Antworte NUR als JSON: {"quotes":["..."],"insights":["..."]}',
-      text.slice(0, 8000)
+      text.slice(0, 8000),
+      undefined, undefined, 'Brain Extract Agent'
     );
     await logAiTask('Brain Extract Agent', 'transcript_extraction', extractResult);
     const parsed = JSON.parse(extractResult.replace(/```json?\n?/g, '').replace(/```/g, '').trim());

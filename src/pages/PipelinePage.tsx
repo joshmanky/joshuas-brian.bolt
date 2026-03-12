@@ -63,7 +63,7 @@ export default function PipelinePage() {
     try {
       const hookLabel = HOOK_TYPE_LABELS[card.hook_type as HookType] || card.hook_type;
       const userMessage = `Erstelle ein virales Skript zum Thema: "${card.title}". Verwende einen ${hookLabel}. Formatiere klar mit den 5 Phasen: Hook, Situation, Emotion, Mehrwert/Loesung, CTA.`;
-      const result = await callClaude(SCRIPT_SYSTEM_PROMPT, userMessage, CLAUDE_MODELS.SONNET, 1000);
+      const result = await callClaude(SCRIPT_SYSTEM_PROMPT, userMessage, CLAUDE_MODELS.SONNET, 1000, 'Pipeline Script Agent');
       await logAiTask('Pipeline Script Agent', 'pipeline_script_generation', result);
       await updateCard(card.id, { script_content: result, status: 'skript_fertig' });
       loadCards();

@@ -1,5 +1,5 @@
-// Edge function: proxy Claude API calls (avoids CORS issues from browser)
-// Updated: reads model and maxTokens from request body, fallback to Sonnet and 2048
+// Edge function: proxy Claude API calls with token usage tracking
+// Updated: captures usage.input_tokens / output_tokens, logs to token_usage_log
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
@@ -16,7 +16,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { systemPrompt, userMessage, model, maxTokens } = await req.json();
+    const { systemPrompt, userMessage, model, maxTokens, agentName } = await req.json();
     if (!userMessage) {
       return new Response(
         JSON.stringify({ error: "userMessage is required" }),
@@ -41,6 +41,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const usedModel = model || "claude-sonnet-4-20250514";
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -49,7 +50,7 @@ Deno.serve(async (req: Request) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: model || "claude-sonnet-4-20250514",
+        model: usedModel,
         max_tokens: maxTokens || 2048,
         system: systemPrompt || "Du bist ein hilfreicher Assistent.",
         messages: [{ role: "user", content: userMessage }],
@@ -66,15 +67,38 @@ Deno.serve(async (req: Request) => {
 
     const claudeJson = await claudeRes.json();
     const text = claudeJson.content?.[0]?.text || "";
+    const inputTokens = claudeJson.usage?.input_tokens || 0;
+    const outputTokens = claudeJson.usage?.output_tokens || 0;
 
-    await supabase.from("ai_tasks_log").insert({
-      task_type: "claude_call",
-      input_summary: userMessage.slice(0, 200),
-      output_summary: text.slice(0, 200),
-    });
+    const isHaiku = usedModel.includes("haiku");
+    const inputCostPer1M = isHaiku ? 0.25 : 3.0;
+    const outputCostPer1M = isHaiku ? 1.25 : 15.0;
+    const estimatedCost =
+      (inputTokens / 1_000_000) * inputCostPer1M +
+      (outputTokens / 1_000_000) * outputCostPer1M;
+
+    await Promise.all([
+      supabase.from("ai_tasks_log").insert({
+        task_type: "claude_call",
+        agent_name: agentName || "System",
+        input_summary: userMessage.slice(0, 200),
+        output_summary: text.slice(0, 200),
+      }),
+      supabase.from("token_usage_log").insert({
+        agent_name: agentName || "System",
+        model: usedModel,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        estimated_cost: estimatedCost,
+        task_type: "claude_call",
+      }),
+    ]);
 
     return new Response(
-      JSON.stringify({ text }),
+      JSON.stringify({
+        text,
+        usage: { input_tokens: inputTokens, output_tokens: outputTokens, estimated_cost: estimatedCost },
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

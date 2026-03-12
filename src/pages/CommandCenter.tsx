@@ -1,17 +1,17 @@
 // CommandCenter: CEO Insight + Heute-Cockpit + Live Feed + Attribution + Quick Actions
-// Updated: added Heute section with scheduled/published pipeline cards for today
+// Updated: loads cached CEO analysis on page load, error display, manual refresh with confirm
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, FileText, Sparkles, Zap, Brain, Lightbulb, BarChart3,
-  Instagram, Music2, Youtube, RefreshCw, Send, Calendar, CheckCircle2, Clock,
+  Instagram, Music2, Youtube, RefreshCw, Send, Calendar, CheckCircle2, Clock, AlertCircle,
 } from 'lucide-react';
 import StatCard from '../components/ui/StatCard';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Select from '../components/ui/Select';
 import { supabase } from '../lib/supabase';
-import { runCeoAnalysis, type CeoAnalysis } from '../services/ceoAgent';
+import { runCeoAnalysis, loadCachedCeoAnalysis, type CeoAnalysis } from '../services/ceoAgent';
 import { createAttribution } from '../services/attribution';
 import { getScheduledForToday, getPublishedToday } from '../services/pipeline';
 import { formatNumber, formatTimeAgo, getPlatformTextColor, getPlatformColor } from '../lib/utils';
@@ -45,6 +45,7 @@ export default function CommandCenter() {
   const [loading, setLoading] = useState(true);
   const [ceoAnalysis, setCeoAnalysis] = useState<CeoAnalysis | null>(null);
   const [ceoLoading, setCeoLoading] = useState(false);
+  const [ceoError, setCeoError] = useState<string | null>(null);
   const [attrForm, setAttrForm] = useState({ lead_name: '', channel: '', content_title: '', revenue: '' });
   const [attrSaving, setAttrSaving] = useState(false);
   const [attrSuccess, setAttrSuccess] = useState(false);
@@ -55,7 +56,7 @@ export default function CommandCenter() {
 
   async function loadDashboard() {
     try {
-      const [igData, ttData, ytData, igPosts, ttVideos, ytVideos, aiTasks, scheduled, published] = await Promise.all([
+      const [igData, ttData, ytData, igPosts, ttVideos, ytVideos, aiTasks, scheduled, published, cachedCeo] = await Promise.all([
         supabase.from('instagram_data').select('followers_count').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('tiktok_data').select('followers').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('youtube_data').select('subscribers').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
@@ -65,11 +66,13 @@ export default function CommandCenter() {
         supabase.from('ai_tasks_log').select('id', { count: 'exact', head: true }),
         getScheduledForToday(),
         getPublishedToday(),
+        loadCachedCeoAnalysis(),
       ]);
 
       setTotalFollowers((igData.data?.followers_count || 0) + (ttData.data?.followers || 0) + (ytData.data?.subscribers || 0));
       setScheduledToday(scheduled);
       setPublishedCount(published);
+      if (cachedCeo) setCeoAnalysis(cachedCeo);
 
       const allPosts: FeedItem[] = [];
       (igPosts.data || []).forEach((p) => allPosts.push({ id: p.ig_id, platform: 'instagram', text: p.caption || '', likes: p.like_count, timestamp: p.timestamp, thumbnail: p.thumbnail_url }));
@@ -86,10 +89,13 @@ export default function CommandCenter() {
 
   async function loadCeoInsight() {
     setCeoLoading(true);
+    setCeoError(null);
     try {
       const result = await runCeoAnalysis();
       setCeoAnalysis(result);
-    } catch { setCeoAnalysis(null); } finally { setCeoLoading(false); }
+    } catch (e) {
+      setCeoError(e instanceof Error ? e.message : 'CEO Analyse fehlgeschlagen');
+    } finally { setCeoLoading(false); }
   }
 
   async function handleAttrSubmit(e: React.FormEvent) {
@@ -317,7 +323,16 @@ export default function CommandCenter() {
                 )}
               </div>
             ) : (
-              <p className="text-sm text-jb-text-muted py-4 text-center">CEO Analyse nicht verfuegbar.</p>
+              <div className="py-4 text-center space-y-2">
+                <p className="text-sm text-jb-text-muted">CEO Analyse nicht verfuegbar.</p>
+                <p className="text-xs text-jb-text-muted">Klicke auf den Refresh-Button um eine neue Analyse zu starten.</p>
+              </div>
+            )}
+            {ceoError && (
+              <div className="flex items-start gap-2 mt-3 p-2.5 bg-red-500/5 border border-red-500/20 rounded-lg">
+                <AlertCircle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-red-400">{ceoError}</p>
+              </div>
             )}
           </div>
 

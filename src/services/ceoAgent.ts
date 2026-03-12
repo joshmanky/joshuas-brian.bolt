@@ -1,5 +1,5 @@
 // CEO Agent service: analyses all performance data and optimizes agent prompts
-// Updated: uses Sonnet model with 800 tokens, no cache (manual trigger only)
+// Updated: caches result to ceo_analysis_cache, loadCachedCeoAnalysis for free reads
 import { supabase } from '../lib/supabase';
 import { callClaude, logAiTask, CLAUDE_MODELS } from './claude';
 import { AGENT_REGISTRY } from './agents';
@@ -17,7 +17,25 @@ export interface AgentOptimization {
   suggestedPromptUpdate: string;
 }
 
-export async function runCeoAnalysis(): Promise<CeoAnalysis> {
+export async function loadCachedCeoAnalysis(): Promise<CeoAnalysis | null> {
+  const { data } = await supabase
+    .from('ceo_analysis_cache')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  return {
+    performanceSummary: data.performance_summary,
+    agentOptimizations: (data.agent_optimizations || []) as AgentOptimization[],
+    contentPriorities: (data.content_priorities || []) as string[],
+    generatedAt: data.created_at,
+  };
+}
+
+export async function runCeoAnalysis(model: string = CLAUDE_MODELS.SONNET): Promise<CeoAnalysis> {
   const [taskLogs, igPosts, tiktokVideos, ytVideos] = await Promise.all([
     supabase.from('ai_tasks_log').select('*').order('created_at', { ascending: false }).limit(50),
     supabase.from('instagram_posts').select('caption, like_count, media_type').order('like_count', { ascending: false }).limit(10),
@@ -48,7 +66,7 @@ export async function runCeoAnalysis(): Promise<CeoAnalysis> {
 
   const userMessage = `TOP INSTAGRAM POSTS:\n${igContext || 'Keine Daten'}\n\nTOP TIKTOK VIDEOS:\n${ttContext || 'Keine Daten'}\n\nTOP YOUTUBE VIDEOS:\n${ytContext || 'Keine Daten'}\n\nREZENTE AI TASKS:\n${taskContext || 'Keine Logs'}`;
 
-  const raw = await callClaude(CEO_SYSTEM_PROMPT, userMessage, CLAUDE_MODELS.SONNET, 800);
+  const raw = await callClaude(CEO_SYSTEM_PROMPT, userMessage, model, 800, 'CEO Agent');
   await logAiTask('CEO Agent', 'agent_optimization_analysis', raw);
 
   try {
@@ -57,12 +75,21 @@ export async function runCeoAnalysis(): Promise<CeoAnalysis> {
     const parsed = JSON.parse(jsonMatch[0]) as CeoAnalysis;
     parsed.generatedAt = new Date().toISOString();
 
-    await supabase.from('ai_tasks_log').insert({
-      agent_name: 'CEO Agent',
-      task_type: 'full_system_optimization',
-      output_summary: parsed.performanceSummary.slice(0, 100),
-      status: 'completed',
-    });
+    await Promise.all([
+      supabase.from('ai_tasks_log').insert({
+        agent_name: 'CEO Agent',
+        task_type: 'full_system_optimization',
+        output_summary: parsed.performanceSummary.slice(0, 100),
+        status: 'completed',
+      }),
+      supabase.from('ceo_analysis_cache').insert({
+        performance_summary: parsed.performanceSummary,
+        agent_optimizations: parsed.agentOptimizations,
+        content_priorities: parsed.contentPriorities,
+        source: 'manual',
+        model_used: model,
+      }),
+    ]);
 
     return parsed;
   } catch {
