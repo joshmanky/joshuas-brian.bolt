@@ -1,6 +1,6 @@
 // MediaUploadForm: drag-and-drop upload with metadata form for media library
 import { useState, useRef, useCallback } from 'react';
-import { Upload, X, Film, ImageIcon } from 'lucide-react';
+import { Upload, X, Film, Image as ImageIcon } from 'lucide-react';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
 

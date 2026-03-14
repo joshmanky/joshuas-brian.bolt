@@ -1,6 +1,6 @@
 // MediaGrid: display all media_library entries as a responsive grid with hover tooltips
 import { useState } from 'react';
-import { Trash2, Film, ImageIcon } from 'lucide-react';
+import { Trash2, Film, Image as ImageIcon } from 'lucide-react';
 import Badge from '../ui/Badge';
 import type { MediaItem } from '../../types';
 
