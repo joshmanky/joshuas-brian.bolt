@@ -1,8 +1,8 @@
-// StudioPage: Content Studio — vertical step-by-step flow (Idee -> Skript -> Caption -> Pipeline)
-// Updated: replaced tab-based approach with collapsible 3-step flow + Lightbulb and B-Roll tools
-import { useState } from 'react';
+// StudioPage: Content Studio — vertical 3-step flow (Idee -> Skript -> Caption -> Pipeline)
+// Updated: added video matching, brain context support, removed old Canva design button
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Sparkles, Zap, Film, ExternalLink } from 'lucide-react';
+import { Sparkles, Zap, Film, Brain } from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import StudioIdeaStep from '../components/studio/StudioIdeaStep';
 import StudioScriptStep from '../components/studio/StudioScriptStep';
@@ -10,37 +10,60 @@ import StudioCaptionStep from '../components/studio/StudioCaptionStep';
 import LightbulbTab from '../components/studio/LightbulbTab';
 import BrollTab from '../components/studio/BrollTab';
 import { createCard } from '../services/pipeline';
-import { logAiTask } from '../services/claude';
-import { createCanvaDesign, isCanvaConnected } from '../services/canva/canvaService';
 import type { ResearchItem } from '../types';
 
-type FlowStep = 1 | 2 | 3;
+const BRAIN_CONTEXT_KEY = 'jb_brain_context';
+
+type FlowStep = 0 | 1 | 2 | 3;
 
 export default function StudioPage() {
   const [searchParams] = useSearchParams();
   const initialContent = searchParams.get('prefill') || '';
   const initialTab = searchParams.get('tool') || '';
+  const initialStep = searchParams.get('step') || '';
 
-  const [openStep, setOpenStep] = useState<FlowStep>(1);
+  const [openStep, setOpenStep] = useState<FlowStep>(initialStep === 'skript' ? 2 : 1);
   const [selectedIdea, setSelectedIdea] = useState<ResearchItem | null>(null);
   const [script, setScript] = useState('');
   const [caption, setCaption] = useState('');
   const [hashtags, setHashtags] = useState('');
   const [platform, setPlatform] = useState('instagram');
   const [hookType, setHookType] = useState('statement_hook');
+  const [mediaId, setMediaId] = useState<string | null>(null);
   const [pipelineSaved, setPipelineSaved] = useState(false);
-  const [canvaLoading, setCanvaLoading] = useState(false);
-  const [canvaDesignUrl, setCanvaDesignUrl] = useState('');
   const [showLightbulb, setShowLightbulb] = useState(initialTab === 'lightbulb');
   const [showBroll, setShowBroll] = useState(initialTab === 'broll');
+  const [brainContext, setBrainContext] = useState('');
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem(BRAIN_CONTEXT_KEY);
+    if (stored) {
+      setBrainContext(stored);
+      sessionStorage.removeItem(BRAIN_CONTEXT_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (initialContent && initialStep === 'skript') {
+      const idea: ResearchItem = {
+        id: `prefill-${Date.now()}`,
+        title: initialContent,
+        hook_type: 'statement_hook',
+        platform: 'instagram',
+        status: 'new',
+        created_at: new Date().toISOString(),
+      };
+      setSelectedIdea(idea);
+    }
+  }, [initialContent, initialStep]);
 
   function handleSelectIdea(idea: ResearchItem) {
     setSelectedIdea(idea);
     setScript('');
     setCaption('');
     setHashtags('');
+    setMediaId(null);
     setPipelineSaved(false);
-    setCanvaDesignUrl('');
     setOpenStep(2);
   }
 
@@ -49,7 +72,6 @@ export default function StudioPage() {
     setCaption('');
     setHashtags('');
     setPipelineSaved(false);
-    setCanvaDesignUrl('');
   }
 
   function handleCaptionGenerated(newCaption: string, newHashtags: string) {
@@ -61,26 +83,8 @@ export default function StudioPage() {
     setOpenStep(3);
   }
 
-  async function handleCreateCanvaDesign() {
-    setCanvaLoading(true);
-    try {
-      const connected = await isCanvaConnected();
-      if (!connected) {
-        alert('Bitte zuerst Canva verbinden (unter Studio > B-Roll Tools).');
-        setCanvaLoading(false);
-        return;
-      }
-      const hookLine = script.split('\n').find((l) => l.trim()) || selectedIdea?.title || 'Content';
-      const result = await createCanvaDesign(hookLine, platform);
-      if (result) {
-        setCanvaDesignUrl(result.designUrl);
-        await logAiTask('Canva Design Agent', 'canva_design_creation', `Design erstellt: ${result.designId}`);
-      }
-    } catch {
-      alert('Canva Design konnte nicht erstellt werden.');
-    } finally {
-      setCanvaLoading(false);
-    }
+  function handleMediaMatched(id: string) {
+    setMediaId(id);
   }
 
   async function handleAddToPipeline() {
@@ -88,11 +92,11 @@ export default function StudioPage() {
       title: selectedIdea?.title || script.split('\n').find((l) => l.trim())?.slice(0, 80) || 'Content',
       platform,
       hook_type: hookType,
-      status: caption ? 'skript_fertig' : 'skript_fertig',
+      status: 'skript_fertig',
       script_content: script,
       caption: caption || undefined,
       hashtags: hashtags || undefined,
-      canva_design_url: canvaDesignUrl || undefined,
+      media_id: mediaId || undefined,
     });
     if (card) setPipelineSaved(true);
   }
@@ -109,6 +113,7 @@ export default function StudioPage() {
     setScript('');
     setCaption('');
     setHashtags('');
+    setMediaId(null);
     setPipelineSaved(false);
     setOpenStep(2);
     setShowLightbulb(false);
@@ -126,10 +131,17 @@ export default function StudioPage() {
         </div>
       </div>
 
+      {brainContext && (
+        <div className="max-w-3xl mx-auto bg-jb-accent/5 border border-jb-accent/20 rounded-xl px-5 py-3 flex items-center gap-2">
+          <Brain size={16} className="text-jb-accent flex-shrink-0" />
+          <p className="text-sm text-jb-text">Ideen basieren auf Brain-Content</p>
+        </div>
+      )}
+
       <div className="max-w-3xl mx-auto space-y-3">
         <StudioIdeaStep
           isOpen={openStep === 1}
-          onToggle={() => setOpenStep(openStep === 1 ? 0 as FlowStep : 1)}
+          onToggle={() => setOpenStep(openStep === 1 ? 0 : 1)}
           selectedIdea={selectedIdea}
           onSelectIdea={handleSelectIdea}
           prefilledContent={initialContent}
@@ -137,50 +149,32 @@ export default function StudioPage() {
 
         <StudioScriptStep
           isOpen={openStep === 2}
-          onToggle={() => setOpenStep(openStep === 2 ? 0 as FlowStep : 2)}
+          onToggle={() => setOpenStep(openStep === 2 ? 0 : 2)}
           selectedIdea={selectedIdea}
           script={script}
           onScriptGenerated={handleScriptGenerated}
           onGenerateCaption={handleGenerateCaption}
-          onCreateCanvaDesign={handleCreateCanvaDesign}
           onAddToPipeline={handleAddToPipeline}
+          onMediaMatched={handleMediaMatched}
           platform={platform}
           onPlatformChange={setPlatform}
           hookType={hookType}
           onHookTypeChange={setHookType}
+          brainContext={brainContext}
         />
 
         <StudioCaptionStep
           isOpen={openStep === 3}
-          onToggle={() => setOpenStep(openStep === 3 ? 0 as FlowStep : 3)}
+          onToggle={() => setOpenStep(openStep === 3 ? 0 : 3)}
           script={script}
+          platform={platform}
           caption={caption}
           hashtags={hashtags}
           onCaptionGenerated={handleCaptionGenerated}
           onSaveToPipeline={handleAddToPipeline}
           pipelineSaved={pipelineSaved}
+          mediaId={mediaId}
         />
-
-        {canvaLoading && (
-          <div className="bg-jb-card border border-jb-accent/30 rounded-xl px-5 py-3 flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-jb-accent border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-jb-accent font-medium">Canva Design wird erstellt...</span>
-          </div>
-        )}
-
-        {canvaDesignUrl && (
-          <div className="bg-jb-success/5 border border-jb-success/20 rounded-xl px-5 py-3 flex items-center justify-between">
-            <span className="text-sm text-jb-success font-medium">Canva Design erstellt!</span>
-            <a
-              href={canvaDesignUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-jb-accent hover:underline font-medium"
-            >
-              <ExternalLink size={12} /> In Canva oeffnen
-            </a>
-          </div>
-        )}
 
         {pipelineSaved && (
           <div className="bg-jb-success/5 border border-jb-success/20 rounded-xl px-5 py-3 text-center">

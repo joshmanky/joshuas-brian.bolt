@@ -1,14 +1,15 @@
-// StudioScriptStep: Step 2 of the Content Studio flow — generate script from idea
-// Created: collapsible section with script generation and action buttons for next steps
+// StudioScriptStep: Step 2 — generate script from idea + video matching
+// Updated: added "Passendes Video finden" button with AI matching from media_library
 import { useState, useEffect } from 'react';
-import { Sparkles, Copy, Check, Wand2, TrendingUp, ChevronDown, ChevronRight, Hash, Image, Kanban } from 'lucide-react';
+import { Sparkles, Copy, Check, Wand2, TrendingUp, ChevronDown, ChevronRight, Hash, Film, Kanban } from 'lucide-react';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
 import Badge from '../ui/Badge';
 import { callClaude, logAiTask, SCRIPT_SYSTEM_PROMPT, CLAUDE_MODELS } from '../../services/claude';
 import { fetchTopPerformanceData, buildPerformanceContext } from '../../services/performanceData';
+import { matchVideoToScript, getMediaById } from '../../services/media';
 import { HOOK_TYPE_LABELS, PLATFORM_OPTIONS } from '../../types';
-import type { HookType, ResearchItem } from '../../types';
+import type { HookType, ResearchItem, MediaItem } from '../../types';
 
 interface StudioScriptStepProps {
   isOpen: boolean;
@@ -17,12 +18,13 @@ interface StudioScriptStepProps {
   script: string;
   onScriptGenerated: (script: string) => void;
   onGenerateCaption: () => void;
-  onCreateCanvaDesign: () => void;
   onAddToPipeline: () => void;
+  onMediaMatched: (mediaId: string) => void;
   platform: string;
   onPlatformChange: (p: string) => void;
   hookType: string;
   onHookTypeChange: (h: string) => void;
+  brainContext?: string;
 }
 
 const HOOK_OPTIONS = Object.entries(HOOK_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }));
@@ -34,18 +36,22 @@ export default function StudioScriptStep({
   script,
   onScriptGenerated,
   onGenerateCaption,
-  onCreateCanvaDesign,
   onAddToPipeline,
+  onMediaMatched,
   platform,
   onPlatformChange,
   hookType,
   onHookTypeChange,
+  brainContext,
 }: StudioScriptStepProps) {
   const [topic, setTopic] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [perfContext, setPerfContext] = useState('');
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [matchedMedia, setMatchedMedia] = useState<MediaItem | null>(null);
+  const [matchReason, setMatchReason] = useState('');
 
   useEffect(() => {
     fetchTopPerformanceData()
@@ -69,6 +75,7 @@ export default function StudioScriptStep({
     setLoading(true);
     setError(null);
     setCopied(false);
+    setMatchedMedia(null);
 
     try {
       const platformLabel = PLATFORM_OPTIONS.find((p) => p.value === platform)?.label || platform;
@@ -77,6 +84,9 @@ export default function StudioScriptStep({
       let userMessage = '';
       if (perfContext) {
         userMessage += `--- PERFORMANCE-DATEN ---\n${perfContext}\n--- ENDE PERFORMANCE-DATEN ---\n\n`;
+      }
+      if (brainContext) {
+        userMessage += `--- BRAIN KONTEXT ---\n${brainContext}\n--- ENDE BRAIN KONTEXT ---\n\n`;
       }
       userMessage += `Erstelle ein virales ${platformLabel} Skript zum Thema: "${topic}". Verwende einen ${hookLabel}. Formatiere klar mit den 5 Phasen: Hook, Situation, Emotion, Mehrwert/Loesung, CTA.`;
 
@@ -87,6 +97,25 @@ export default function StudioScriptStep({
       setError(e instanceof Error ? e.message : 'Fehler bei der Generierung');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleMatchVideo() {
+    if (!script) return;
+    setMatchLoading(true);
+    try {
+      const hookLine = script.split('\n').find((l) => l.trim()) || topic;
+      const match = await matchVideoToScript(hookLine, platform);
+      if (match) {
+        const media = await getMediaById(match.matched_id);
+        if (media) {
+          setMatchedMedia(media);
+          setMatchReason(match.reason);
+          onMediaMatched(media.id);
+        }
+      }
+    } catch {} finally {
+      setMatchLoading(false);
     }
   }
 
@@ -134,6 +163,13 @@ export default function StudioScriptStep({
             <div className="bg-jb-success/5 border border-jb-success/20 rounded-lg p-3 flex items-start gap-2">
               <TrendingUp size={14} className="text-jb-success mt-0.5 flex-shrink-0" />
               <p className="text-xs text-jb-text-secondary">Performance-Daten werden automatisch in die Generierung einbezogen.</p>
+            </div>
+          )}
+
+          {brainContext && (
+            <div className="bg-jb-accent/5 border border-jb-accent/20 rounded-lg p-3 flex items-start gap-2">
+              <Sparkles size={14} className="text-jb-accent mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-jb-text-secondary">Brain-Content wird als zusaetzlicher Kontext verwendet.</p>
             </div>
           )}
 
@@ -201,11 +237,12 @@ export default function StudioScriptStep({
                 <Button
                   variant="secondary"
                   size="md"
-                  icon={<Image size={15} />}
-                  onClick={onCreateCanvaDesign}
+                  icon={<Film size={15} />}
+                  onClick={handleMatchVideo}
+                  loading={matchLoading}
                   className="w-full"
                 >
-                  Canva Thumbnail
+                  Video finden
                 </Button>
                 <Button
                   variant="secondary"
@@ -217,6 +254,26 @@ export default function StudioScriptStep({
                   Zur Pipeline
                 </Button>
               </div>
+
+              {matchedMedia && (
+                <div className="bg-jb-success/5 border border-jb-success/20 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-12 rounded-lg bg-jb-bg flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {matchedMedia.type === 'image' && matchedMedia.file_url ? (
+                        <img src={matchedMedia.file_url} alt="" className="w-full h-full object-cover" />
+                      ) : matchedMedia.thumbnail_url ? (
+                        <img src={matchedMedia.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Film size={20} className="text-jb-text-muted" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-jb-text truncate">{matchedMedia.filename}</p>
+                      <p className="text-xs text-jb-text-secondary">{matchReason}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

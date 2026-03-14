@@ -1,10 +1,10 @@
-// CommandCenter: CEO Insight + Heute-Cockpit + Live Feed + Attribution + Quick Actions
-// Updated: loads cached CEO analysis on page load, error display, manual refresh with confirm
+// CommandCenter: CEO Insight + Heute-Cockpit + Performance + Live Feed + Attribution + Quick Actions
+// Updated: added "Performance dieser Woche" section with top performing cards
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, FileText, Sparkles, Zap, Brain, Lightbulb, BarChart3,
-  Instagram, Music2, Youtube, RefreshCw, Send, Calendar, CheckCircle2, Clock, AlertCircle,
+  Instagram, Music2, Youtube, RefreshCw, Send, Calendar, CheckCircle2, Clock, AlertCircle, TrendingUp, Heart,
 } from 'lucide-react';
 import StatCard from '../components/ui/StatCard';
 import Button from '../components/ui/Button';
@@ -13,7 +13,7 @@ import Select from '../components/ui/Select';
 import { supabase } from '../lib/supabase';
 import { runCeoAnalysis, loadCachedCeoAnalysis, type CeoAnalysis } from '../services/ceoAgent';
 import { createAttribution } from '../services/attribution';
-import { getScheduledForToday, getPublishedToday } from '../services/pipeline';
+import { getScheduledForToday, getPublishedToday, getTopPerformingCards } from '../services/pipeline';
 import { formatNumber, formatTimeAgo, getPlatformTextColor, getPlatformColor } from '../lib/utils';
 import type { PipelineCard } from '../types';
 
@@ -51,12 +51,13 @@ export default function CommandCenter() {
   const [attrSuccess, setAttrSuccess] = useState(false);
   const [scheduledToday, setScheduledToday] = useState<PipelineCard[]>([]);
   const [publishedCount, setPublishedCount] = useState(0);
+  const [topCards, setTopCards] = useState<PipelineCard[]>([]);
 
   useEffect(() => { loadDashboard(); }, []);
 
   async function loadDashboard() {
     try {
-      const [igData, ttData, ytData, igPosts, ttVideos, ytVideos, aiTasks, scheduled, published, cachedCeo] = await Promise.all([
+      const [igData, ttData, ytData, igPosts, ttVideos, ytVideos, aiTasks, scheduled, published, cachedCeo, topPerf] = await Promise.all([
         supabase.from('instagram_data').select('followers_count').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('tiktok_data').select('followers').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('youtube_data').select('subscribers').order('fetched_at', { ascending: false }).limit(1).maybeSingle(),
@@ -67,11 +68,13 @@ export default function CommandCenter() {
         getScheduledForToday(),
         getPublishedToday(),
         loadCachedCeoAnalysis(),
+        getTopPerformingCards(3),
       ]);
 
       setTotalFollowers((igData.data?.followers_count || 0) + (ttData.data?.followers || 0) + (ytData.data?.subscribers || 0));
       setScheduledToday(scheduled);
       setPublishedCount(published);
+      setTopCards(topPerf);
       if (cachedCeo) setCeoAnalysis(cachedCeo);
 
       const allPosts: FeedItem[] = [];
@@ -249,6 +252,38 @@ export default function CommandCenter() {
               </div>
             )}
           </div>
+
+          {topCards.length > 0 && (
+            <div className="bg-jb-card border border-jb-accent/20 rounded-xl p-5">
+              <h3 className="text-sm font-semibold text-jb-text flex items-center gap-2 mb-3">
+                <TrendingUp size={14} className="text-jb-accent" /> Performance dieser Woche
+              </h3>
+              <div className="space-y-2">
+                {topCards.map((card, i) => {
+                  const platLabel = card.platform === 'instagram' ? 'IG' : card.platform === 'tiktok' ? 'TT' : 'YT';
+                  return (
+                    <div key={card.id} className="flex items-center gap-3 p-2.5 bg-jb-bg rounded-lg">
+                      <span className="text-xs font-bold text-jb-text-muted w-5">#{i + 1}</span>
+                      <div className={`w-2 h-2 rounded-full ${getPlatformColor(card.platform)}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-jb-text truncate">{card.title}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-jb-text-secondary">
+                        <Heart size={10} className="text-jb-danger" />
+                        <span className="stat-number">{card.likes_48h || 0}</span>
+                      </div>
+                      <Badge color={`${getPlatformColor(card.platform)} text-white`}>{platLabel}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+              {ceoAnalysis && ceoAnalysis.contentPriorities.length > 0 && (
+                <div className="mt-3 bg-jb-success/5 border border-jb-success/20 rounded-lg p-3">
+                  <p className="text-xs text-jb-success font-medium">CEO Empfehlung: {ceoAnalysis.contentPriorities[0]}</p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="bg-jb-card border border-jb-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">

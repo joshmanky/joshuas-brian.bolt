@@ -1,5 +1,5 @@
-// PipelinePage: Kanban board with drag-and-drop content pipeline
-// Updated: new detail modal with caption/hashtags/canva/date; published auto-logs to ai_tasks_log
+// PipelinePage: Kanban board with drag-and-drop, media thumbnails, published auto-log
+// Updated: loads media thumbnails for cards, passes to KanbanColumn
 import { useState, useEffect, useCallback } from 'react';
 import { DndContext, DragOverlay, closestCorners, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
@@ -14,6 +14,7 @@ import Select from '../components/ui/Select';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { getAllCards, createCard, deleteCard, moveCard, updateCard } from '../services/pipeline';
 import { callClaude, logAiTask, SCRIPT_SYSTEM_PROMPT, CLAUDE_MODELS } from '../services/claude';
+import { supabase } from '../lib/supabase';
 import { PIPELINE_COLUMNS, HOOK_TYPE_LABELS, PLATFORM_OPTIONS } from '../types';
 import type { PipelineCard, PipelineStatus, HookType } from '../types';
 
@@ -27,6 +28,7 @@ export default function PipelinePage() {
   const [newPlatform, setNewPlatform] = useState('instagram');
   const [newHookType, setNewHookType] = useState('statement_hook');
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [mediaThumbnails, setMediaThumbnails] = useState<Record<string, string>>({});
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -37,6 +39,21 @@ export default function PipelinePage() {
     const data = await getAllCards();
     setCards(data);
     setLoading(false);
+
+    const mediaIds = [...new Set(data.filter((c) => c.media_id).map((c) => c.media_id!))];
+    if (mediaIds.length > 0) {
+      const { data: mediaData } = await supabase
+        .from('media_library')
+        .select('id, file_url, thumbnail_url, type')
+        .in('id', mediaIds);
+      if (mediaData) {
+        const thumbs: Record<string, string> = {};
+        mediaData.forEach((m) => {
+          thumbs[m.id] = m.thumbnail_url || (m.type === 'image' ? m.file_url : '');
+        });
+        setMediaThumbnails(thumbs);
+      }
+    }
   }, []);
 
   useEffect(() => { loadCards(); }, [loadCards]);
@@ -111,7 +128,9 @@ export default function PipelinePage() {
     await moveCard(card.id, card.status, position >= 0 ? position : 0);
 
     if (card.status === 'published') {
-      await logAiTask('Pipeline', 'content_published', `Post veroeffentlicht: ${card.title}`);
+      const hookLine = card.title.slice(0, 60);
+      const platLabel = card.platform === 'instagram' ? 'IG' : card.platform === 'tiktok' ? 'TT' : 'YT';
+      await logAiTask('Pipeline', 'content_published', `${platLabel}: ${hookLine}`);
     }
   };
 
@@ -153,6 +172,7 @@ export default function PipelinePage() {
                 id={col.key}
                 title={col.label}
                 cards={getColumnCards(col.key)}
+                mediaThumbnails={mediaThumbnails}
                 onGenerateScript={handleGenerateScript}
                 onDelete={handleDelete}
                 onCardClick={setDetailCard}

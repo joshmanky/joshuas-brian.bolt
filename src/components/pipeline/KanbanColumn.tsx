@@ -1,4 +1,5 @@
 // KanbanColumn: droppable column in the Kanban board
+// Updated: passes mediaThumbnails to KanbanCard
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import KanbanCard from './KanbanCard';
@@ -8,12 +9,13 @@ interface KanbanColumnProps {
   id: string;
   title: string;
   cards: PipelineCard[];
+  mediaThumbnails: Record<string, string>;
   onGenerateScript: (card: PipelineCard) => void;
   onDelete: (id: string) => void;
   onCardClick: (card: PipelineCard) => void;
 }
 
-export default function KanbanColumn({ id, title, cards, onGenerateScript, onDelete, onCardClick }: KanbanColumnProps) {
+export default function KanbanColumn({ id, title, cards, mediaThumbnails, onGenerateScript, onDelete, onCardClick }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
@@ -34,6 +36,7 @@ export default function KanbanColumn({ id, title, cards, onGenerateScript, onDel
             <KanbanCard
               key={card.id}
               card={card}
+              mediaThumbnail={card.media_id ? mediaThumbnails[card.media_id] : undefined}
               onGenerateScript={onGenerateScript}
               onDelete={onDelete}
               onClick={onCardClick}

@@ -1,5 +1,5 @@
 // Pipeline service: CRUD for Kanban pipeline cards in Supabase
-// Updated: createCard accepts caption, hashtags, canva_design_url, scheduled_date; added getScheduledForToday
+// Updated: createCard accepts media_id; added getTopPerformingCards, getRecentPublished
 import { supabase } from '../lib/supabase';
 import type { PipelineCard, PipelineStatus } from '../types';
 
@@ -21,6 +21,7 @@ export async function createCard(card: {
   hashtags?: string;
   canva_design_url?: string;
   scheduled_date?: string;
+  media_id?: string;
 }): Promise<PipelineCard | null> {
   const { count } = await supabase
     .from('pipeline_cards')
@@ -81,4 +82,26 @@ export async function getPublishedToday(): Promise<number> {
     .eq('status', 'published')
     .gte('updated_at', start);
   return count || 0;
+}
+
+export async function getTopPerformingCards(limit: number = 3): Promise<PipelineCard[]> {
+  const oneWeekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const { data } = await supabase
+    .from('pipeline_cards')
+    .select('*')
+    .eq('status', 'published')
+    .gte('updated_at', oneWeekAgo)
+    .order('likes_48h', { ascending: false })
+    .limit(limit);
+  return (data || []) as PipelineCard[];
+}
+
+export async function getRecentPublished(limit: number = 20): Promise<PipelineCard[]> {
+  const { data } = await supabase
+    .from('pipeline_cards')
+    .select('*')
+    .eq('status', 'published')
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+  return (data || []) as PipelineCard[];
 }

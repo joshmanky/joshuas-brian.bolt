@@ -115,7 +115,8 @@ export async function generateContentFromBrain(): Promise<string> {
 
 export async function saveTranscript(
   title: string,
-  text: string
+  text: string,
+  docType: string = 'video_transcript'
 ): Promise<BrainDocument | null> {
   let quotes: string[] = [];
   let insights: string[] = [];
@@ -139,12 +140,12 @@ export async function saveTranscript(
     .from('brain_documents')
     .insert({
       filename: title || 'Video Transkript',
-      category: 'Video Transkript',
+      category: docType === 'video_transcript' ? 'Video Transkript' : 'Dokument',
       file_path: '',
       extracted_quotes: quotes,
       extracted_insights: insights,
       full_text: text.slice(0, 50000),
-      type: 'video_transcript',
+      type: docType,
     })
     .select()
     .maybeSingle();

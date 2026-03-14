@@ -1,7 +1,8 @@
-// KanbanCard: draggable card for the pipeline board
+// KanbanCard: draggable card with media thumbnail, caption preview, platform badge, score
+// Updated: shows media thumbnail, caption preview, scheduled date, performance score badge
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Sparkles, Trash2 } from 'lucide-react';
+import { GripVertical, Sparkles, Trash2, Film, Calendar } from 'lucide-react';
 import Badge from '../ui/Badge';
 import { getPlatformColor } from '../../lib/utils';
 import { HOOK_TYPE_LABELS } from '../../types';
@@ -9,12 +10,20 @@ import type { PipelineCard, HookType } from '../../types';
 
 interface KanbanCardProps {
   card: PipelineCard;
+  mediaThumbnail?: string | null;
   onGenerateScript: (card: PipelineCard) => void;
   onDelete: (id: string) => void;
   onClick: (card: PipelineCard) => void;
 }
 
-export default function KanbanCard({ card, onGenerateScript, onDelete, onClick }: KanbanCardProps) {
+function getScoreBadge(likes: number) {
+  if (likes > 10) return { color: 'bg-jb-success/10 text-jb-success', label: 'Top' };
+  if (likes >= 5) return { color: 'bg-jb-warning/10 text-jb-warning', label: 'OK' };
+  if (likes > 0) return { color: 'bg-jb-border text-jb-text-muted', label: `${likes}` };
+  return null;
+}
+
+export default function KanbanCard({ card, mediaThumbnail, onGenerateScript, onDelete, onClick }: KanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -32,6 +41,7 @@ export default function KanbanCard({ card, onGenerateScript, onDelete, onClick }
 
   const platformLabel = card.platform === 'instagram' ? 'IG' : card.platform === 'tiktok' ? 'TT' : 'YT';
   const hookLabel = HOOK_TYPE_LABELS[card.hook_type as HookType] || card.hook_type;
+  const scoreBadge = getScoreBadge(card.likes_48h || 0);
 
   return (
     <div
@@ -50,11 +60,28 @@ export default function KanbanCard({ card, onGenerateScript, onDelete, onClick }
           <GripVertical size={14} />
         </button>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-jb-text truncate">{card.title}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-medium text-jb-text truncate">{card.title}</p>
+            {mediaThumbnail && (
+              <div className="w-10 h-8 rounded flex-shrink-0 overflow-hidden bg-jb-border">
+                <img src={mediaThumbnail} alt="" className="w-full h-full object-cover" />
+              </div>
+            )}
+          </div>
+          {card.caption && (
+            <p className="text-[11px] text-jb-text-muted mt-1 line-clamp-1">{card.caption.slice(0, 60)}</p>
+          )}
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
             <Badge color={`${getPlatformColor(card.platform)} text-white`}>{platformLabel}</Badge>
             <Badge>{hookLabel}</Badge>
+            {scoreBadge && <Badge color={scoreBadge.color}>{scoreBadge.label}</Badge>}
           </div>
+          {card.scheduled_date && (
+            <div className="flex items-center gap-1 mt-1.5 text-[10px] text-jb-text-muted">
+              <Calendar size={10} />
+              {new Date(card.scheduled_date).toLocaleDateString('de-DE')}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-jb-border/50 opacity-0 group-hover:opacity-100 transition-opacity">

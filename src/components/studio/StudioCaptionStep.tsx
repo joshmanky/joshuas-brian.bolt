@@ -1,26 +1,29 @@
-// StudioCaptionStep: Step 3 of the Content Studio flow — generate caption and hashtags from script
-// Created: collapsible section with caption/hashtag generation and pipeline save
+// StudioCaptionStep: Step 3 — generate caption and hashtags with Joshua-specific CTA
+// Updated: uses custom caption prompt per spec, includes platform + media_id in pipeline save
 import { useState } from 'react';
 import { Hash, Copy, Check, ChevronDown, ChevronRight, Kanban, Wand2 } from 'lucide-react';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
-import { callClaude, logAiTask, CAPTION_SYSTEM_PROMPT } from '../../services/claude';
+import { callClaude, logAiTask, CLAUDE_MODELS } from '../../services/claude';
 
 interface StudioCaptionStepProps {
   isOpen: boolean;
   onToggle: () => void;
   script: string;
+  platform: string;
   caption: string;
   hashtags: string;
   onCaptionGenerated: (caption: string, hashtags: string) => void;
   onSaveToPipeline: () => void;
   pipelineSaved: boolean;
+  mediaId?: string | null;
 }
 
 export default function StudioCaptionStep({
   isOpen,
   onToggle,
   script,
+  platform,
   caption,
   hashtags,
   onCaptionGenerated,
@@ -39,16 +42,18 @@ export default function StudioCaptionStep({
     setLoading(true);
     setError(null);
     try {
-      const result = await callClaude(
-        CAPTION_SYSTEM_PROMPT,
-        `Schreibe Caption und Hashtags fuer dieses Skript:\n\n${script.slice(0, 3000)}`,
-        undefined, undefined, 'Caption Agent'
-      );
+      const systemPrompt = 'Du schreibst Captions fuer Joshua (DreamChasers Industry, H.I.S.-Methode). Niemals "Network Marketing" schreiben. Immer CTA am Ende: "Schreib HIS in die Kommentare" oder "Schick mir HIS per DM".';
+      const userMsg = `Schreibe eine Caption fuer ${platform} zum Skript: ${script.slice(0, 3000)}. Antworte NUR mit JSON: {"caption": "...", "hashtags": ["tag1", "tag2", ...]}`;
+
+      const result = await callClaude(systemPrompt, userMsg, CLAUDE_MODELS.HAIKU, 400, 'Caption Agent');
       await logAiTask('Caption Agent', 'caption_generation', result);
 
       const cleaned = result.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
       const parsed = JSON.parse(cleaned);
-      onCaptionGenerated(parsed.caption || '', parsed.hashtags || '');
+      const tags = Array.isArray(parsed.hashtags)
+        ? parsed.hashtags.map((t: string) => t.startsWith('#') ? t : `#${t}`).join(' ')
+        : parsed.hashtags || '';
+      onCaptionGenerated(parsed.caption || '', tags);
     } catch {
       setError('Caption-Generierung fehlgeschlagen. Versuche es erneut.');
     } finally {

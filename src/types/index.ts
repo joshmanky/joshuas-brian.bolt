@@ -88,9 +88,29 @@ export interface PipelineCard {
   hashtags: string | null;
   canva_design_url: string | null;
   scheduled_date: string | null;
+  media_id: string | null;
+  views_48h: number;
+  likes_48h: number;
+  watchtime_score: number;
   position: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface MediaItem {
+  id: string;
+  file_url: string;
+  filename: string;
+  type: string;
+  duration_seconds: number | null;
+  mood: string | null;
+  scene: string | null;
+  has_face: boolean;
+  speaking: boolean;
+  tags: string[] | null;
+  ai_description: string | null;
+  thumbnail_url: string | null;
+  created_at: string;
 }
 
 export interface BrainDocument {

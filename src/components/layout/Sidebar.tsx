@@ -1,4 +1,5 @@
-// Sidebar: 7-hub navigation (Command Center, Studio, Platforms, Pipeline, Brain, Agents, Settings)
+// Sidebar: 8-hub navigation (Command Center, Studio, Platforms, Pipeline, Mediathek, Brain, Agents, Settings)
+// Updated: added /media (Mediathek) route between Pipeline and Brain
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   ChevronRight,
   Zap,
   Cpu,
+  Film,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -24,6 +26,7 @@ const NAV_ITEMS = [
   { to: '/studio', icon: Sparkles, label: 'Content Studio' },
   { to: '/platforms', icon: BarChart3, label: 'Plattformen' },
   { to: '/pipeline', icon: Kanban, label: 'Pipeline' },
+  { to: '/media', icon: Film, label: 'Mediathek' },
   { to: '/brain', icon: Brain, label: 'Brain & Wissen' },
   { to: '/agents', icon: Cpu, label: 'Agents' },
   { to: '/settings', icon: Settings, label: 'Settings' },
