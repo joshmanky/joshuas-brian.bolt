@@ -1,5 +1,5 @@
-// Edge function: proxy Claude API calls with token usage tracking
-// Updated: captures usage.input_tokens / output_tokens, logs to token_usage_log
+// Edge function: proxy Claude API calls with token usage tracking + Vision support
+// Updated: accepts optional `images` array (base64 JPEG) for Claude Vision analysis
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
@@ -10,13 +10,22 @@ const corsHeaders = {
     "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+interface RequestBody {
+  systemPrompt?: string;
+  userMessage: string;
+  model?: string;
+  maxTokens?: number;
+  agentName?: string;
+  images?: string[];
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   try {
-    const { systemPrompt, userMessage, model, maxTokens, agentName } = await req.json();
+    const { systemPrompt, userMessage, model, maxTokens, agentName, images }: RequestBody = await req.json();
     if (!userMessage) {
       return new Response(
         JSON.stringify({ error: "userMessage is required" }),
@@ -41,6 +50,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    let content: unknown;
+    if (images && images.length > 0) {
+      const contentBlocks: unknown[] = [];
+      for (const imgBase64 of images) {
+        contentBlocks.push({
+          type: "image",
+          source: { type: "base64", media_type: "image/jpeg", data: imgBase64 },
+        });
+      }
+      contentBlocks.push({ type: "text", text: userMessage });
+      content = contentBlocks;
+    } else {
+      content = userMessage;
+    }
+
     const usedModel = model || "claude-sonnet-4-20250514";
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -53,7 +77,7 @@ Deno.serve(async (req: Request) => {
         model: usedModel,
         max_tokens: maxTokens || 2048,
         system: systemPrompt || "Du bist ein hilfreicher Assistent.",
-        messages: [{ role: "user", content: userMessage }],
+        messages: [{ role: "user", content }],
       }),
     });
 
@@ -77,11 +101,15 @@ Deno.serve(async (req: Request) => {
       (inputTokens / 1_000_000) * inputCostPer1M +
       (outputTokens / 1_000_000) * outputCostPer1M;
 
+    const inputSummary = images && images.length > 0
+      ? `[${images.length} image(s)] ${userMessage.slice(0, 150)}`
+      : userMessage.slice(0, 200);
+
     await Promise.all([
       supabase.from("ai_tasks_log").insert({
         task_type: "claude_call",
         agent_name: agentName || "System",
-        input_summary: userMessage.slice(0, 200),
+        input_summary: inputSummary,
         output_summary: text.slice(0, 200),
       }),
       supabase.from("token_usage_log").insert({

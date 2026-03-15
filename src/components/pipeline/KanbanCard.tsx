@@ -2,7 +2,7 @@
 // Updated: shows media thumbnail, caption preview, scheduled date, performance score badge
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Sparkles, Trash2, Film, Calendar } from 'lucide-react';
+import { GripVertical, Sparkles, Trash2, Calendar } from 'lucide-react';
 import Badge from '../ui/Badge';
 import { getPlatformColor } from '../../lib/utils';
 import { HOOK_TYPE_LABELS } from '../../types';

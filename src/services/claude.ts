@@ -1,5 +1,5 @@
 // Claude API service: calls the call-claude edge function + AI task logging + token tracking
-// Updated: callClaude passes agentName for token tracking, returns usage data optionally
+// Updated: supports optional images array for Claude Vision analysis
 import { supabase } from '../lib/supabase';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -21,7 +21,8 @@ export async function callClaude(
   userMessage: string,
   model: string = CLAUDE_MODELS.HAIKU,
   maxTokens: number = 500,
-  agentName: string = 'System'
+  agentName: string = 'System',
+  images?: string[]
 ): Promise<string> {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/call-claude`, {
     method: 'POST',
@@ -29,7 +30,7 @@ export async function callClaude(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
     },
-    body: JSON.stringify({ systemPrompt, userMessage, model, maxTokens, agentName }),
+    body: JSON.stringify({ systemPrompt, userMessage, model, maxTokens, agentName, images }),
   });
 
   const json = await res.json();
