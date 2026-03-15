@@ -1,9 +1,10 @@
-// Sidebar: 8-hub navigation (Command Center, Studio, Platforms, Pipeline, Mediathek, Brain, Agents, Settings)
-// Updated: added /media (Mediathek) route between Pipeline and Brain
+// Sidebar: 9-hub navigation (Command Center, Studio, Research, Platforms, Pipeline, Mediathek, Brain, Agents, Settings)
+// Updated: added /research between Content Studio and Plattformen
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Sparkles,
+  Search,
   BarChart3,
   Kanban,
   Brain,
@@ -24,6 +25,7 @@ interface SidebarProps {
 const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Command Center' },
   { to: '/studio', icon: Sparkles, label: 'Content Studio' },
+  { to: '/research', icon: Search, label: 'Research' },
   { to: '/platforms', icon: BarChart3, label: 'Plattformen' },
   { to: '/pipeline', icon: Kanban, label: 'Pipeline' },
   { to: '/media', icon: Film, label: 'Mediathek' },

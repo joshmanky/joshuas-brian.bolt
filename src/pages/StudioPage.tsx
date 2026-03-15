@@ -38,8 +38,14 @@ export default function StudioPage() {
   const [showBroll, setShowBroll] = useState(initialTab === 'broll');
   const [brainContext, setBrainContext] = useState('');
   const [ceoRec, setCeoRec] = useState<NextPostRecommendation | null>(null);
+  const [researchIdea, setResearchIdea] = useState<{ text: string; source: string } | null>(null);
 
   useEffect(() => {
+    const ri = sessionStorage.getItem('research_idea');
+    const rs = sessionStorage.getItem('research_source');
+    if (ri) {
+      setResearchIdea({ text: ri, source: rs || '' });
+    }
     const stored = sessionStorage.getItem(BRAIN_CONTEXT_KEY);
     if (stored) {
       setBrainContext(stored);
@@ -148,6 +154,46 @@ export default function StudioPage() {
       )}
 
       <div className="max-w-3xl mx-auto space-y-3">
+        {researchIdea && !selectedIdea && (
+          <div className="bg-jb-success/5 border border-jb-success/20 rounded-xl px-5 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles size={16} className="text-jb-success flex-shrink-0" />
+              <p className="text-sm text-jb-text truncate">
+                <span className="font-medium">Research-Idee{researchIdea.source ? ` von ${researchIdea.source}` : ''}:</span>{' '}
+                {researchIdea.text.slice(0, 60)}{researchIdea.text.length > 60 ? '...' : ''}
+              </p>
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <Button
+                size="sm"
+                onClick={() => {
+                  sessionStorage.removeItem('research_idea');
+                  sessionStorage.removeItem('research_source');
+                  const idea: ResearchItem = {
+                    id: `research-${Date.now()}`,
+                    title: researchIdea.text,
+                    hook_type: hookType,
+                    platform: platform as 'instagram' | 'tiktok' | 'youtube',
+                    status: 'new',
+                    created_at: new Date().toISOString(),
+                  };
+                  handleSelectIdea(idea);
+                  setResearchIdea(null);
+                }}
+              >
+                Verwenden
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => { setResearchIdea(null); sessionStorage.removeItem('research_idea'); sessionStorage.removeItem('research_source'); }}
+              >
+                Ignorieren
+              </Button>
+            </div>
+          </div>
+        )}
+
         {ceoRec && !selectedIdea && (
           <div className="bg-jb-success/5 border border-jb-success/20 rounded-xl px-5 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 min-w-0">

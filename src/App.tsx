@@ -1,9 +1,10 @@
-// App: 8-hub routing + Canva OAuth callback
-// Updated: added /media (Mediathek) route
+// App: 9-hub routing + Canva OAuth callback
+// Updated: added /research (Content Research Hub) route
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import CommandCenter from './pages/CommandCenter';
 import StudioPage from './pages/StudioPage';
+import ResearchPage from './pages/ResearchPage';
 import PlatformsPage from './pages/PlatformsPage';
 import PipelinePage from './pages/PipelinePage';
 import MediaPage from './pages/MediaPage';
@@ -20,6 +21,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<CommandCenter />} />
           <Route path="/studio" element={<StudioPage />} />
+          <Route path="/research" element={<ResearchPage />} />
           <Route path="/platforms" element={<PlatformsPage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/media" element={<MediaPage />} />

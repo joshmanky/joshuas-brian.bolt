@@ -1,22 +1,27 @@
 // WeeklyPerformanceSection: This Week performance stats for Command Center
-// Created: avg likes, best/worst post, trend arrow, hook type badges
+// Updated: added research stats (links analyzed, used as idea)
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, Flame, Minus, Heart, Eye, MessageSquare } from 'lucide-react';
+import { TrendingUp, TrendingDown, Flame, Minus, Heart, Search } from 'lucide-react';
 import Badge from '../ui/Badge';
 import { getWeeklyPerformanceStats, type WeeklyStats } from '../../services/pipeline';
+import { getResearchWeeklyStats } from '../../services/savedContent';
 import { HOOK_TYPE_LABELS } from '../../types';
 import { getPlatformColor, formatNumber } from '../../lib/utils';
 import type { HookType, PipelineCard } from '../../types';
 
 export default function WeeklyPerformanceSection() {
   const [stats, setStats] = useState<WeeklyStats | null>(null);
+  const [researchStats, setResearchStats] = useState<{ analyzed: number; usedAsIdea: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getWeeklyPerformanceStats()
-      .then(setStats)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      getWeeklyPerformanceStats(),
+      getResearchWeeklyStats(),
+    ]).then(([s, rs]) => {
+      setStats(s);
+      setResearchStats(rs);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   if (loading) {
@@ -83,6 +88,17 @@ export default function WeeklyPerformanceSection() {
 
       {stats.worstPost && (
         <PostRow card={stats.worstPost} label="Schlechtester Post" type="worst" />
+      )}
+
+      {researchStats && (researchStats.analyzed > 0 || researchStats.usedAsIdea > 0) && (
+        <div className="flex items-center gap-3 px-3 py-2 bg-jb-bg rounded-lg">
+          <Search size={13} className="text-jb-accent flex-shrink-0" />
+          <p className="text-xs text-jb-text-secondary">
+            <span className="font-medium text-jb-text">{researchStats.analyzed}</span> Links analysiert
+            {' · '}
+            <span className="font-medium text-jb-text">{researchStats.usedAsIdea}</span> als Idee genutzt
+          </p>
+        </div>
       )}
     </div>
   );

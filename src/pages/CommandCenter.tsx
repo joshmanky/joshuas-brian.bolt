@@ -357,6 +357,9 @@ export default function CommandCenter() {
               <Button variant="secondary" size="md" className="w-full justify-start" icon={<Brain size={16} />} onClick={() => navigate('/brain?tab=transkript')}>
                 Brain fuettern
               </Button>
+              <Button variant="secondary" size="md" className="w-full justify-start col-span-2" icon={<FileText size={16} />} onClick={() => navigate('/research')}>
+                Research Hub
+              </Button>
             </div>
           </div>
         </div>
