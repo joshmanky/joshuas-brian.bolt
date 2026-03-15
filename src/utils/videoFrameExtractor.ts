@@ -1,5 +1,5 @@
 // Video frame extraction utility: extracts frames from video files using HTML5 video+canvas
-// Used by media upload to send visual frames to Claude Vision for AI analysis
+// Updated: added try/catch with proper URL cleanup to handle codec/format errors gracefully
 
 const FRAME_MAX_WIDTH = 512;
 const JPEG_QUALITY = 0.6;
@@ -60,25 +60,32 @@ function dataUrlToBase64(dataUrl: string): string {
 }
 
 export async function extractVideoFrames(file: File): Promise<ExtractedFrames> {
-  const video = await createVideoElement(file);
-  const duration = video.duration;
-  const frames: string[] = [];
-  let thumbnailDataUrl = '';
+  let videoSrc = '';
+  try {
+    const video = await createVideoElement(file);
+    videoSrc = video.src;
+    const duration = video.duration;
+    const frames: string[] = [];
+    let thumbnailDataUrl = '';
 
-  for (let i = 0; i < FRAME_POSITIONS.length; i++) {
-    const time = duration * FRAME_POSITIONS[i];
-    await seekToTime(video, time);
-    const dataUrl = captureFrame(video);
-    frames.push(dataUrlToBase64(dataUrl));
+    for (let i = 0; i < FRAME_POSITIONS.length; i++) {
+      const time = duration * FRAME_POSITIONS[i];
+      await seekToTime(video, time);
+      const dataUrl = captureFrame(video);
+      frames.push(dataUrlToBase64(dataUrl));
 
-    if (i === 1) {
-      thumbnailDataUrl = dataUrl;
+      if (i === 1) {
+        thumbnailDataUrl = dataUrl;
+      }
     }
+
+    URL.revokeObjectURL(video.src);
+    return { frames, duration: Math.round(duration), thumbnailDataUrl };
+  } catch (err) {
+    if (videoSrc) URL.revokeObjectURL(videoSrc);
+    console.error(`[FrameExtractor] Failed for ${file.name}:`, err);
+    throw new Error(`Frame-Extraktion fehlgeschlagen: ${err instanceof Error ? err.message : 'Unbekannter Codec/Format'}`);
   }
-
-  URL.revokeObjectURL(video.src);
-
-  return { frames, duration: Math.round(duration), thumbnailDataUrl };
 }
 
 export async function imageFileToBase64(file: File): Promise<{ base64: string; dataUrl: string }> {

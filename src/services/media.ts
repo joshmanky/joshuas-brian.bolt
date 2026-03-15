@@ -1,8 +1,9 @@
-// Media service: CRUD for media_library + file upload + AI Vision analysis
-// Updated: visual analysis via Claude Vision (frame extraction), batch upload support, batch editing
+// Media service: CRUD for media_library + TUS resumable upload + AI Vision analysis
+// Updated: switched to tus-js-client for chunked resumable uploads with progress tracking
 import { supabase } from '../lib/supabase';
 import { callClaude, logAiTask, CLAUDE_MODELS } from './claude';
 import { extractVideoFrames, imageFileToBase64 } from '../utils/videoFrameExtractor';
+import { uploadFileResumable } from './tusUpload';
 import type { MediaItem } from '../types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -90,7 +91,8 @@ export async function analyzeMediaVisually(file: File): Promise<{
 
 export async function uploadAndAnalyzeMedia(
   file: File,
-  onStatus?: (status: string) => void
+  onStatus?: (status: string) => void,
+  onProgress?: (percent: number) => void
 ): Promise<MediaItem | null> {
   onStatus?.('uploading');
 
@@ -99,11 +101,12 @@ export async function uploadAndAnalyzeMedia(
   const isVideo = ['mp4', 'mov', 'webm'].includes(ext.toLowerCase());
   const fileType = isVideo ? 'video' : 'image';
 
-  const { error: uploadError } = await supabase.storage
-    .from('media')
-    .upload(filePath, file);
-
-  if (uploadError) throw new Error('Upload fehlgeschlagen: ' + uploadError.message);
+  await uploadFileResumable({
+    bucketName: 'media',
+    filePath,
+    file,
+    onProgress,
+  });
 
   const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/media/${filePath}`;
 

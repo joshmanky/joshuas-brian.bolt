@@ -51,8 +51,12 @@ export default function MediaPage() {
 
   useEffect(() => { loadMedia(); }, [loadMedia]);
 
-  async function handleProcessFile(file: File, onStatus: (status: string) => void) {
-    await uploadAndAnalyzeMedia(file, onStatus);
+  async function handleProcessFile(
+    file: File,
+    onStatus: (status: string) => void,
+    onProgress: (percent: number) => void
+  ) {
+    await uploadAndAnalyzeMedia(file, onStatus, onProgress);
   }
 
   async function handleDelete(id: string) {
