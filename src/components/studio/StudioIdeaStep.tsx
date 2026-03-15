@@ -1,7 +1,5 @@
-// StudioIdeaStep: Step 1 of the Content Studio flow — select or create an idea
-// Created: collapsible section with idea list, AI generation, and manual input
 import { useState, useEffect, useCallback } from 'react';
-import { Lightbulb, Plus, Sparkles, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react';
+import { Lightbulb, Plus, Sparkles, ChevronDown, ChevronRight, ArrowRight, BookOpen, X, Wand2 } from 'lucide-react';
 import Button from '../ui/Button';
 import Select from '../ui/Select';
 import Badge from '../ui/Badge';
@@ -12,8 +10,25 @@ import {
   deleteResearchItem,
   generateResearchIdeas,
 } from '../../services/research';
+import {
+  getAllHookTemplates,
+  generateHookFromTemplate,
+  incrementTemplateUsage,
+  type HookTemplate,
+} from '../../services/savedContent';
 import { HOOK_TYPE_LABELS, PLATFORM_OPTIONS } from '../../types';
 import type { ResearchItem, HookType } from '../../types';
+
+function highlightPlaceholders(text: string) {
+  const parts = text.split(/(\[[^\]]+\])/g);
+  return parts.map((part, i) =>
+    part.startsWith('[') && part.endsWith(']') ? (
+      <span key={i} className="bg-jb-accent/15 text-jb-accent px-0.5 rounded font-semibold text-xs">{part}</span>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
 
 interface StudioIdeaStepProps {
   isOpen: boolean;
@@ -39,6 +54,12 @@ export default function StudioIdeaStep({
   const [formTitle, setFormTitle] = useState('');
   const [formHook, setFormHook] = useState('statement_hook');
   const [formPlatform, setFormPlatform] = useState('instagram');
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templates, setTemplates] = useState<HookTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<HookTemplate | null>(null);
+  const [templateThema, setTemplateThema] = useState('');
+  const [generatingHook, setGeneratingHook] = useState(false);
+  const [generatedTemplateHook, setGeneratedTemplateHook] = useState('');
 
   const loadItems = useCallback(async () => {
     try {
@@ -88,6 +109,39 @@ export default function StudioIdeaStep({
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
+  async function handleOpenTemplateModal() {
+    setShowTemplateModal(true);
+    setSelectedTemplate(null);
+    setGeneratedTemplateHook('');
+    setTemplateThema('');
+    if (templates.length === 0) {
+      const t = await getAllHookTemplates().catch(() => []);
+      setTemplates(t);
+    }
+  }
+
+  async function handleGenerateFromTemplate() {
+    if (!selectedTemplate || !templateThema.trim()) return;
+    setGeneratingHook(true);
+    setGeneratedTemplateHook('');
+    try {
+      const hook = await generateHookFromTemplate(selectedTemplate.template_text, templateThema);
+      setGeneratedTemplateHook(hook);
+      await incrementTemplateUsage(selectedTemplate.id);
+    } catch {} finally {
+      setGeneratingHook(false);
+    }
+  }
+
+  function handleUseTemplateHook() {
+    if (!generatedTemplateHook) return;
+    setFormTitle(generatedTemplateHook);
+    setShowForm(true);
+    setShowTemplateModal(false);
+    setGeneratedTemplateHook('');
+    setSelectedTemplate(null);
+  }
+
   const stepDone = !!selectedIdea;
 
   return (
@@ -119,7 +173,7 @@ export default function StudioIdeaStep({
 
       {isOpen && (
         <div className="px-5 pb-5 space-y-4 border-t border-jb-border pt-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="secondary"
               size="sm"
@@ -136,6 +190,14 @@ export default function StudioIdeaStep({
               onClick={() => setShowForm(!showForm)}
             >
               Eigene Idee
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<BookOpen size={13} />}
+              onClick={handleOpenTemplateModal}
+            >
+              Hook-Template nutzen
             </Button>
           </div>
 
@@ -199,6 +261,81 @@ export default function StudioIdeaStep({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-jb-card border border-jb-border rounded-2xl w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-jb-border flex-shrink-0">
+              <h3 className="text-sm font-semibold text-jb-text flex items-center gap-2">
+                <BookOpen size={14} className="text-jb-accent" /> Hook-Template nutzen
+              </h3>
+              <button
+                onClick={() => { setShowTemplateModal(false); setSelectedTemplate(null); setGeneratedTemplateHook(''); }}
+                className="text-jb-text-muted hover:text-jb-text transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-5 space-y-4">
+              {templates.length === 0 ? (
+                <p className="text-sm text-jb-text-muted text-center py-8">Lade Templates...</p>
+              ) : (
+                <div className="space-y-2">
+                  {templates.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => { setSelectedTemplate(t); setGeneratedTemplateHook(''); }}
+                      className={`w-full text-left p-3 rounded-xl border transition-all ${
+                        selectedTemplate?.id === t.id
+                          ? 'border-jb-accent/50 bg-jb-accent/5'
+                          : 'border-jb-border bg-jb-bg hover:border-jb-border-light'
+                      }`}
+                    >
+                      <p className="text-sm text-jb-text leading-snug">{highlightPlaceholders(t.template_text)}</p>
+                      {t.example && <p className="text-xs text-jb-text-muted italic mt-1">&ldquo;{t.example}&rdquo;</p>}
+                      {t.category && <span className="inline-block mt-1.5 text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-300 border border-violet-500/20">{t.category}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {selectedTemplate && (
+                <div className="space-y-3 pt-2 border-t border-jb-border">
+                  <div>
+                    <label className="block text-xs text-jb-text-muted mb-1.5 uppercase tracking-wider">Dein Thema</label>
+                    <input
+                      type="text"
+                      value={templateThema}
+                      onChange={(e) => setTemplateThema(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleGenerateFromTemplate()}
+                      placeholder="z.B. Prokrastination, Network Marketing, Trading..."
+                      className="w-full bg-jb-bg border border-jb-border rounded-lg px-3 py-2.5 text-sm text-jb-text placeholder:text-jb-text-muted focus:outline-none focus:border-jb-accent/50 transition-colors"
+                    />
+                  </div>
+                  <Button
+                    icon={<Wand2 size={14} />}
+                    loading={generatingHook}
+                    onClick={handleGenerateFromTemplate}
+                    disabled={!templateThema.trim()}
+                    className="w-full"
+                  >
+                    {generatingHook ? 'Generiere Hook...' : 'Hook generieren'}
+                  </Button>
+                  {generatedTemplateHook && (
+                    <div className="bg-jb-success/5 border border-jb-success/20 rounded-xl p-4 space-y-3">
+                      <p className="text-base font-bold text-jb-text leading-snug">{generatedTemplateHook}</p>
+                      <Button icon={<ArrowRight size={14} />} onClick={handleUseTemplateHook} className="w-full">
+                        Als Idee verwenden
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

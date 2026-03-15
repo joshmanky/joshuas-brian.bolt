@@ -1,4 +1,3 @@
-// Saved Content service: link-based research hub — analyze URLs, store insights, Apify TikTok scraping
 import { supabase } from '../lib/supabase';
 import { callClaude, logAiTask, CLAUDE_MODELS } from './claude';
 import { getApiKey } from './apiKeys';
@@ -14,10 +13,14 @@ export interface SavedContent {
   why_it_works: string | null;
   niche_adaptation: string | null;
   adapted_hook: string | null;
+  hook_template: string | null;
+  storytelling_framework: string | null;
+  outlier_score: number;
   tags: string[] | null;
   performance_estimate: string;
   status: string;
   used_as_idea: boolean;
+  project_folder: string;
   created_at: string;
 }
 
@@ -25,8 +28,19 @@ export interface WatchAccount {
   id: string;
   username: string;
   platform: string;
+  niche_relevance: string | null;
   notes: string | null;
   last_scraped: string | null;
+  created_at: string;
+}
+
+export interface HookTemplate {
+  id: string;
+  template_text: string;
+  category: string | null;
+  example: string | null;
+  performance_score: number;
+  times_used: number;
   created_at: string;
 }
 
@@ -41,28 +55,31 @@ export async function analyzeContentLink(params: {
   creatorName: string;
   platform: string;
   rawInput: string;
+  projectFolder?: string;
 }): Promise<SavedContent> {
-  const { url, creatorName, platform, rawInput } = params;
+  const { url, creatorName, platform, rawInput, projectFolder } = params;
 
-  const userMsg = `Analysiere diesen Content:
+  const userMsg = `Analysiere:
 URL: ${url || 'nicht angegeben'}
 Creator: ${creatorName || 'nicht angegeben'}
 Plattform: ${platform}
 Caption/Text: ${rawInput || 'nicht angegeben'}
 
-Erstelle JSON mit diesen Feldern:
+JSON:
 {
-  "hook_text": "Der originale Hook des Videos in einem praegnanten Satz",
-  "video_format": "Talking Head oder B-Roll oder Text-Overlay oder POV oder Duett oder Sonstiges",
-  "why_it_works": "Warum performt dieser Content gut? Max 2 Saetze, psychologisch praezise.",
-  "niche_adaptation": "Wie wuerde Josh diesen Content fuer H.I.S./DCI adaptieren? Konkrete Beschreibung in 2-3 Saetzen.",
-  "adapted_hook": "Der fertige Hook fuer Joshs Video. Direkt verwendbar, max 15 Woerter.",
-  "tags": ["thema1", "thema2", "thema3"],
-  "performance_estimate": "hoch oder mittel oder niedrig",
-  "creator_style": "Kurze Beschreibung des Stils dieses Creators in 1 Satz"
+  "hook_text": "Original-Hook des Videos (1 Satz)",
+  "video_format": "Talking Head / B-Roll / Text-Overlay / POV / Storytime / Listicle",
+  "why_it_works": "Warum performt das? Psychologischer Trigger + Formatgrund. Max 2 Saetze.",
+  "hook_template": "Welches abstrakte Hook-Template steckt dahinter? Z.B.: Du bist nicht [X], du hast [Y].",
+  "storytelling_framework": "Problem-Agitate-Solve / Identitaets-Reframe / Kontrast / Mythos-brechen / Personal Story / Zahlen-Schock",
+  "niche_adaptation": "Wie adaptiert Joshua diesen Content fuer H.I.S./DCI? 2-3 Saetze konkret.",
+  "adapted_hook": "Fertiger Hook fuer Joshs Video. Direkt verwendbar. Max 15 Woerter.",
+  "outlier_score": Zahl 1-100 wie viral-tauglich das Konzept fuer Joshs Nische ist,
+  "tags": ["tag1","tag2","tag3"],
+  "performance_estimate": "hoch oder mittel oder niedrig"
 }`;
 
-  const raw = await callClaude(RESEARCH_SYSTEM_PROMPT, userMsg, CLAUDE_MODELS.SONNET, 800, 'Content Research Agent');
+  const raw = await callClaude(RESEARCH_SYSTEM_PROMPT, userMsg, CLAUDE_MODELS.SONNET, 1000, 'Content Research Agent');
   await logAiTask('Content Research Agent', 'content_link_analysis', raw);
 
   let parsed: Record<string, unknown>;
@@ -85,8 +102,12 @@ Erstelle JSON mit diesen Feldern:
       why_it_works: parsed.why_it_works as string,
       niche_adaptation: parsed.niche_adaptation as string,
       adapted_hook: parsed.adapted_hook as string,
+      hook_template: parsed.hook_template as string,
+      storytelling_framework: parsed.storytelling_framework as string,
+      outlier_score: (parsed.outlier_score as number) || 0,
       tags: (parsed.tags as string[]) || [],
       performance_estimate: (parsed.performance_estimate as string) || 'mittel',
+      project_folder: projectFolder || 'Allgemein',
     })
     .select()
     .maybeSingle();
@@ -95,11 +116,10 @@ Erstelle JSON mit diesen Feldern:
   return data as SavedContent;
 }
 
-export async function getAllSavedContent(): Promise<SavedContent[]> {
-  const { data } = await supabase
-    .from('saved_content')
-    .select('*')
-    .order('created_at', { ascending: false });
+export async function getAllSavedContent(folder?: string): Promise<SavedContent[]> {
+  let q = supabase.from('saved_content').select('*').order('created_at', { ascending: false });
+  if (folder && folder !== 'Alle') q = q.eq('project_folder', folder);
+  const { data } = await q;
   return (data || []) as SavedContent[];
 }
 
@@ -150,10 +170,20 @@ export async function getAllWatchAccounts(): Promise<WatchAccount[]> {
   return (data || []) as WatchAccount[];
 }
 
-export async function addWatchAccount(params: { username: string; platform: string; notes: string }): Promise<WatchAccount> {
+export async function addWatchAccount(params: {
+  username: string;
+  platform: string;
+  nicheRelevance: string;
+  notes: string;
+}): Promise<WatchAccount> {
   const { data, error } = await supabase
     .from('watch_accounts')
-    .insert({ username: params.username, platform: params.platform, notes: params.notes || null })
+    .insert({
+      username: params.username,
+      platform: params.platform,
+      niche_relevance: params.nicheRelevance || null,
+      notes: params.notes || null,
+    })
     .select()
     .maybeSingle();
   if (error || !data) throw new Error('Fehler beim Hinzufuegen des Accounts.');
@@ -215,4 +245,84 @@ export async function scrapeTikTokAccount(
     .eq('id', account.id);
 
   return results;
+}
+
+export async function getAllHookTemplates(): Promise<HookTemplate[]> {
+  const { data } = await supabase
+    .from('hook_templates')
+    .select('*')
+    .order('performance_score', { ascending: false });
+  return (data || []) as HookTemplate[];
+}
+
+export async function addHookTemplate(params: {
+  templateText: string;
+  category: string;
+  example: string;
+}): Promise<HookTemplate> {
+  const { data, error } = await supabase
+    .from('hook_templates')
+    .insert({ template_text: params.templateText, category: params.category || null, example: params.example || null })
+    .select()
+    .maybeSingle();
+  if (error || !data) throw new Error('Fehler beim Speichern des Templates.');
+  return data as HookTemplate;
+}
+
+export async function incrementTemplateUsage(id: string): Promise<void> {
+  const { data } = await supabase.from('hook_templates').select('times_used').eq('id', id).maybeSingle();
+  if (data) {
+    await supabase.from('hook_templates').update({ times_used: (data.times_used || 0) + 1 }).eq('id', id);
+  }
+}
+
+export async function extractTemplatesFromDatabase(): Promise<HookTemplate[]> {
+  const { data } = await supabase
+    .from('saved_content')
+    .select('adapted_hook, hook_template, storytelling_framework')
+    .not('adapted_hook', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (!data || data.length === 0) throw new Error('Keine Eintraege in der Datenbank.');
+
+  const list = data
+    .map((r) => `Hook: ${r.adapted_hook} | Template: ${r.hook_template || 'unbekannt'}`)
+    .join('\n');
+
+  const raw = await callClaude(
+    'Du bist ein Hook-Stratege. Extrahiere abstrakte, wiederverwendbare Hook-Templates. Antworte NUR als valides JSON Array ohne Backticks.',
+    `Extrahiere 3 neue abstrakte Hook-Templates aus diesen analysierten Hooks:\n${list}\n\nJSON Array: [{"template_text": "...", "category": "...", "example": "..."}]`,
+    CLAUDE_MODELS.HAIKU,
+    400,
+    'Content Research Agent'
+  );
+
+  let parsed: Array<{ template_text: string; category: string; example: string }>;
+  try {
+    const clean = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+    parsed = JSON.parse(clean);
+  } catch {
+    throw new Error('Template-Extraktion fehlgeschlagen.');
+  }
+
+  const results: HookTemplate[] = [];
+  for (const t of parsed) {
+    try {
+      const saved = await addHookTemplate({ templateText: t.template_text, category: t.category, example: t.example });
+      results.push(saved);
+    } catch {}
+  }
+  return results;
+}
+
+export async function generateHookFromTemplate(templateText: string, thema: string): Promise<string> {
+  const raw = await callClaude(
+    'Du bist ein Hook-Texter fuer Joshua Tischer. Antworte nur mit dem fertigen Hook, keine Erklaerung.',
+    `Fuelle dieses Hook-Template fuer das Thema "${thema}" aus: ${templateText}`,
+    CLAUDE_MODELS.HAIKU,
+    200,
+    'Content Research Agent'
+  );
+  return raw.replace(/```/g, '').trim();
 }

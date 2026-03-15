@@ -1,14 +1,25 @@
-// DatabaseTab: Research database — all saved content with filters, search, copy-to-studio
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, ExternalLink, Trash2, ArrowRight, Check } from 'lucide-react';
+import { Search, ExternalLink, Trash2, ArrowRight, Check, FolderOpen } from 'lucide-react';
 import Badge from '../ui/Badge';
 import Button from '../ui/Button';
-import { getAllSavedContent, getSavedContentStats, markAsUsedIdea, deleteSavedContent, type SavedContent } from '../../services/savedContent';
+import {
+  getAllSavedContent,
+  getSavedContentStats,
+  markAsUsedIdea,
+  deleteSavedContent,
+  type SavedContent,
+} from '../../services/savedContent';
 
 const PLATFORM_FILTERS = ['Alle', 'instagram', 'tiktok', 'youtube'];
-const PERF_FILTERS = ['Hoch', 'Noch nicht genutzt'];
+const FOLDER_OPTIONS = ['Alle', 'Allgemein', 'H.I.S.-Methode', 'Trading', 'Lifestyle', 'Network Marketing'];
 const PAGE_SIZE = 20;
+
+function getOutlierColor(score: number) {
+  if (score >= 70) return 'text-jb-success font-bold';
+  if (score >= 40) return 'text-jb-warning font-bold';
+  return 'text-jb-danger font-bold';
+}
 
 function getPerfColor(est: string) {
   if (est === 'hoch') return 'bg-jb-success/10 text-jb-success';
@@ -28,7 +39,10 @@ export default function DatabaseTab({ refreshKey }: { refreshKey: number }) {
   const [items, setItems] = useState<SavedContent[]>([]);
   const [stats, setStats] = useState({ total: 0, today: 0, usedAsIdea: 0, highPerformance: 0 });
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('Alle');
+  const [platformFilter, setPlatformFilter] = useState('Alle');
+  const [perfFilter, setPerfFilter] = useState('');
+  const [folderFilter, setFolderFilter] = useState('Alle');
+  const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -43,26 +57,30 @@ export default function DatabaseTab({ refreshKey }: { refreshKey: number }) {
 
   const filtered = useMemo(() => {
     let list = items;
-    if (filter === 'Hoch') list = list.filter((i) => i.performance_estimate === 'hoch');
-    else if (filter === 'Noch nicht genutzt') list = list.filter((i) => !i.used_as_idea);
-    else if (filter !== 'Alle') list = list.filter((i) => i.source_platform === filter);
+    if (platformFilter !== 'Alle') list = list.filter((i) => i.source_platform === platformFilter);
+    if (perfFilter === 'hoch') list = list.filter((i) => i.performance_estimate === 'hoch');
+    if (statusFilter === 'Noch nicht genutzt') list = list.filter((i) => !i.used_as_idea);
+    if (statusFilter === 'Bereits verwendet') list = list.filter((i) => i.used_as_idea);
+    if (folderFilter !== 'Alle') list = list.filter((i) => i.project_folder === folderFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter((i) =>
-        (i.adapted_hook || '').toLowerCase().includes(q) ||
-        (i.creator_name || '').toLowerCase().includes(q) ||
-        (i.hook_text || '').toLowerCase().includes(q)
+      list = list.filter(
+        (i) =>
+          (i.adapted_hook || '').toLowerCase().includes(q) ||
+          (i.creator_name || '').toLowerCase().includes(q) ||
+          (i.hook_text || '').toLowerCase().includes(q) ||
+          (i.hook_template || '').toLowerCase().includes(q)
       );
     }
     return list;
-  }, [items, filter, search]);
+  }, [items, platformFilter, perfFilter, folderFilter, statusFilter, search]);
 
   const paginated = filtered.slice(0, page * PAGE_SIZE);
   const hasMore = paginated.length < filtered.length;
 
   async function handleUseAsIdea(item: SavedContent) {
     await markAsUsedIdea(item.id);
-    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, used_as_idea: true } : i));
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, used_as_idea: true } : i)));
     sessionStorage.setItem('research_idea', item.adapted_hook || item.hook_text || '');
     sessionStorage.setItem('research_source', item.creator_name || item.source_platform);
     sessionStorage.setItem('research_url', item.source_url || '');
@@ -81,9 +99,9 @@ export default function DatabaseTab({ refreshKey }: { refreshKey: number }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Gesamt', value: stats.total },
-          { label: 'Heute', value: stats.today },
-          { label: 'Als Idee genutzt', value: stats.usedAsIdea },
-          { label: 'Hoch performant', value: stats.highPerformance },
+          { label: 'Hoch (70+)', value: stats.highPerformance },
+          { label: 'Noch nicht genutzt', value: stats.total - stats.usedAsIdea },
+          { label: 'Diese Woche', value: stats.today },
         ].map(({ label, value }) => (
           <div key={label} className="bg-jb-card border border-jb-border rounded-lg p-3 text-center">
             <p className="text-xl font-bold text-jb-text stat-number">{value}</p>
@@ -92,38 +110,77 @@ export default function DatabaseTab({ refreshKey }: { refreshKey: number }) {
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex gap-1.5 flex-wrap">
-          {[...PLATFORM_FILTERS, ...PERF_FILTERS].map((f) => (
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[10px] text-jb-text-muted uppercase tracking-wider">Plattform:</span>
+          {PLATFORM_FILTERS.map((f) => (
             <button
               key={f}
-              onClick={() => { setFilter(f); setPage(1); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                filter === f
+              onClick={() => { setPlatformFilter(f); setPage(1); }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                platformFilter === f
                   ? 'bg-jb-accent border-jb-accent text-jb-bg'
                   : 'bg-jb-bg border-jb-border text-jb-text-secondary hover:border-jb-accent/30 hover:text-jb-accent'
               }`}
             >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
+              {f === 'Alle' ? 'Alle' : f === 'instagram' ? 'IG' : f === 'tiktok' ? 'TT' : 'YT'}
+            </button>
+          ))}
+          <span className="text-[10px] text-jb-text-muted uppercase tracking-wider mx-1">|</span>
+          <button
+            onClick={() => { setPerfFilter((p) => p === 'hoch' ? '' : 'hoch'); setPage(1); }}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+              perfFilter === 'hoch'
+                ? 'bg-jb-success border-jb-success text-white'
+                : 'bg-jb-bg border-jb-border text-jb-text-secondary hover:border-jb-success/30 hover:text-jb-success'
+            }`}
+          >
+            Hoch
+          </button>
+          <span className="text-[10px] text-jb-text-muted uppercase tracking-wider mx-1">|</span>
+          {['Noch nicht genutzt', 'Bereits verwendet'].map((s) => (
+            <button
+              key={s}
+              onClick={() => { setStatusFilter((cur) => cur === s ? '' : s); setPage(1); }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                statusFilter === s
+                  ? 'bg-jb-accent border-jb-accent text-jb-bg'
+                  : 'bg-jb-bg border-jb-border text-jb-text-secondary hover:border-jb-accent/30 hover:text-jb-accent'
+              }`}
+            >
+              {s}
             </button>
           ))}
         </div>
-        <div className="relative flex-1 min-w-[160px]">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-jb-text-muted" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Hook oder Creator suchen..."
-            className="w-full bg-jb-bg border border-jb-border rounded-lg pl-8 pr-3 py-1.5 text-sm text-jb-text placeholder:text-jb-text-muted focus:outline-none focus:border-jb-accent/50 transition-colors"
-          />
+
+        <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <FolderOpen size={12} className="text-jb-text-muted" />
+            <select
+              value={folderFilter}
+              onChange={(e) => { setFolderFilter(e.target.value); setPage(1); }}
+              className="bg-jb-bg border border-jb-border rounded-lg px-2.5 py-1.5 text-xs text-jb-text focus:outline-none focus:border-jb-accent/50 transition-colors appearance-none"
+            >
+              {FOLDER_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div className="relative flex-1">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-jb-text-muted" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Hook oder Creator suchen..."
+              className="w-full bg-jb-bg border border-jb-border rounded-lg pl-8 pr-3 py-1.5 text-sm text-jb-text placeholder:text-jb-text-muted focus:outline-none focus:border-jb-accent/50 transition-colors"
+            />
+          </div>
         </div>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-jb-card border border-jb-border rounded-xl p-4 animate-pulse h-48" />
+            <div key={i} className="bg-jb-card border border-jb-border rounded-xl p-4 animate-pulse h-56" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -177,33 +234,41 @@ function ContentCard({
           <Badge color={getPerfColor(item.performance_estimate)}>{item.performance_estimate}</Badge>
           {item.used_as_idea && (
             <Badge color="bg-jb-success/10 text-jb-success">
-              <Check size={9} className="mr-0.5" /> Verwendet
+              <Check size={9} className="mr-0.5 inline" /> Verwendet
             </Badge>
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {item.outlier_score > 0 && (
+            <span className={`text-base ${getOutlierColor(item.outlier_score)}`}>{item.outlier_score}</span>
+          )}
           <p className="text-[10px] text-jb-text-muted">
             {new Date(item.created_at).toLocaleDateString('de-DE')}
           </p>
           {item.source_url && (
-            <a
-              href={item.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-jb-text-muted hover:text-jb-accent transition-colors"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <a href={item.source_url} target="_blank" rel="noopener noreferrer" className="text-jb-text-muted hover:text-jb-accent transition-colors" onClick={(e) => e.stopPropagation()}>
               <ExternalLink size={12} />
             </a>
           )}
         </div>
       </div>
 
-      {item.creator_name && (
-        <p className="text-xs text-jb-text-muted -mt-1">{item.creator_name}</p>
-      )}
+      {item.creator_name && <p className="text-xs text-jb-text-muted -mt-1">{item.creator_name}</p>}
 
       <p className="text-base font-bold text-jb-text leading-snug">{item.adapted_hook}</p>
+
+      <div className="flex flex-wrap gap-1.5">
+        {item.hook_template && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-300 text-[10px] border border-violet-500/20">
+            {item.hook_template.length > 45 ? item.hook_template.slice(0, 45) + '...' : item.hook_template}
+          </span>
+        )}
+        {item.storytelling_framework && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20">
+            {item.storytelling_framework}
+          </span>
+        )}
+      </div>
 
       {item.why_it_works && (
         <p className="text-xs text-jb-text-secondary line-clamp-1">{item.why_it_works}</p>
@@ -224,14 +289,8 @@ function ContentCard({
       )}
 
       <div className="flex gap-2 mt-auto pt-1">
-        <Button
-          size="sm"
-          icon={<ArrowRight size={12} />}
-          onClick={() => onUseAsIdea(item)}
-          className="flex-1"
-          disabled={item.used_as_idea}
-        >
-          {item.used_as_idea ? 'Im Studio verwendet' : 'Als Idee ins Studio'}
+        <Button size="sm" icon={<ArrowRight size={12} />} onClick={() => onUseAsIdea(item)} className="flex-1" disabled={item.used_as_idea}>
+          {item.used_as_idea ? 'Bereits verwendet' : 'Als Idee ins Studio'}
         </Button>
         <button
           onClick={() => onDelete(item.id)}

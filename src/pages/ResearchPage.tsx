@@ -1,14 +1,14 @@
-// ResearchPage: Link-based Content Research Hub
-// 3 tabs: Link analysieren | Datenbank | Accounts
 import { useState } from 'react';
-import { Search, Database, Users, Link } from 'lucide-react';
+import { Search, Database, Users, Link, BookOpen } from 'lucide-react';
 import AnalyzeTab from '../components/research/AnalyzeTab';
 import DatabaseTab from '../components/research/DatabaseTab';
 import AccountsTab from '../components/research/AccountsTab';
+import HookTemplatesTab from '../components/research/HookTemplatesTab';
 
 const TABS = [
   { key: 'analyze', label: 'Link analysieren', icon: Link },
   { key: 'database', label: 'Datenbank', icon: Database },
+  { key: 'templates', label: 'Hook-Templates', icon: BookOpen },
   { key: 'accounts', label: 'Accounts', icon: Users },
 ];
 
@@ -24,16 +24,16 @@ export default function ResearchPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-jb-text">Content Research Hub</h1>
-          <p className="text-sm text-jb-text-secondary">Links analysieren, Datenbank aufbauen, adaptierte Ideen fuer deine Nische</p>
+          <p className="text-sm text-jb-text-secondary">Links analysieren, Hooks systematisieren, Datenbank aufbauen</p>
         </div>
       </div>
 
-      <div className="flex border-b border-jb-border gap-1">
+      <div className="flex border-b border-jb-border gap-1 overflow-x-auto">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0 ${
               activeTab === tab.key
                 ? 'border-jb-accent text-jb-accent'
                 : 'border-transparent text-jb-text-muted hover:text-jb-text'
@@ -51,6 +51,9 @@ export default function ResearchPage() {
         )}
         {activeTab === 'database' && (
           <DatabaseTab refreshKey={dbRefreshKey} />
+        )}
+        {activeTab === 'templates' && (
+          <HookTemplatesTab />
         )}
         {activeTab === 'accounts' && (
           <AccountsTab onScraped={() => setDbRefreshKey((k) => k + 1)} />

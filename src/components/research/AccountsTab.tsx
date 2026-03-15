@@ -1,4 +1,3 @@
-// AccountsTab: Watch accounts management — TikTok auto-scrape, Instagram manual info
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, RefreshCw, Instagram, Music2, Youtube, ExternalLink } from 'lucide-react';
 import Button from '../ui/Button';
@@ -17,6 +16,13 @@ const PLATFORM_OPTIONS = [
   { value: 'youtube', label: 'YouTube' },
 ];
 
+const NICHE_OPTIONS = [
+  { value: 'inspiration', label: 'Inspiration' },
+  { value: 'direkte Konkurrenz', label: 'Direkte Konkurrenz' },
+  { value: 'andere Nische', label: 'Andere Nische' },
+  { value: 'lifestyle', label: 'Lifestyle' },
+];
+
 function PlatformIcon({ platform }: { platform: string }) {
   if (platform === 'instagram') return <Instagram size={13} />;
   if (platform === 'tiktok') return <Music2 size={13} />;
@@ -29,16 +35,25 @@ function getPlatformBadgeColor(platform: string) {
   return 'bg-jb-yt/20 text-jb-yt';
 }
 
+function getNicheBadgeColor(rel: string | null) {
+  if (rel === 'direkte Konkurrenz') return 'bg-jb-danger/10 text-jb-danger';
+  if (rel === 'inspiration') return 'bg-jb-success/10 text-jb-success';
+  if (rel === 'lifestyle') return 'bg-blue-500/10 text-blue-400';
+  return 'bg-jb-warning/10 text-jb-warning';
+}
+
 export default function AccountsTab({ onScraped }: { onScraped?: () => void }) {
   const [accounts, setAccounts] = useState<WatchAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState('');
   const [platform, setPlatform] = useState('tiktok');
+  const [nicheRelevance, setNicheRelevance] = useState('inspiration');
   const [notes, setNotes] = useState('');
   const [adding, setAdding] = useState(false);
   const [scraping, setScraping] = useState<string | null>(null);
   const [scrapeMsg, setScrapeMsg] = useState<Record<string, string>>({});
   const [igInfo, setIgInfo] = useState<string | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     getAllWatchAccounts()
@@ -50,12 +65,20 @@ export default function AccountsTab({ onScraped }: { onScraped?: () => void }) {
   async function handleAdd() {
     if (!username.trim()) return;
     setAdding(true);
+    setAddError(null);
     try {
-      const account = await addWatchAccount({ username: username.replace('@', '').trim(), platform, notes });
+      const account = await addWatchAccount({
+        username: username.replace('@', '').trim(),
+        platform,
+        nicheRelevance,
+        notes,
+      });
       setAccounts((prev) => [account, ...prev]);
       setUsername('');
       setNotes('');
-    } catch {} finally {
+    } catch (e) {
+      setAddError(e instanceof Error ? e.message : 'Fehler');
+    } finally {
       setAdding(false);
     }
   }
@@ -66,7 +89,7 @@ export default function AccountsTab({ onScraped }: { onScraped?: () => void }) {
   }
 
   async function handleScrape(account: WatchAccount) {
-    if (account.platform === 'instagram') {
+    if (account.platform === 'instagram' || account.platform === 'youtube') {
       setIgInfo(account.username);
       return;
     }
@@ -77,7 +100,9 @@ export default function AccountsTab({ onScraped }: { onScraped?: () => void }) {
         setScrapeMsg((m) => ({ ...m, [account.id]: msg }));
       });
       setScrapeMsg((m) => ({ ...m, [account.id]: `${results.length} Videos von @${account.username} analysiert` }));
-      setAccounts((prev) => prev.map((a) => a.id === account.id ? { ...a, last_scraped: new Date().toISOString() } : a));
+      setAccounts((prev) =>
+        prev.map((a) => (a.id === account.id ? { ...a, last_scraped: new Date().toISOString() } : a))
+      );
       onScraped?.();
     } catch (e) {
       setScrapeMsg((m) => ({ ...m, [account.id]: e instanceof Error ? e.message : 'Fehler beim Scraping' }));
@@ -101,27 +126,31 @@ export default function AccountsTab({ onScraped }: { onScraped?: () => void }) {
           <select
             value={platform}
             onChange={(e) => setPlatform(e.target.value)}
-            className="bg-jb-bg border border-jb-border rounded-lg px-3 py-2.5 text-sm text-jb-text focus:outline-none focus:border-jb-accent/50 transition-colors"
+            className="bg-jb-bg border border-jb-border rounded-lg px-3 py-2.5 text-sm text-jb-text focus:outline-none focus:border-jb-accent/50 transition-colors appearance-none"
           >
             {PLATFORM_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
         </div>
-        <input
-          type="text"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Notizen (optional, z.B. 'Lifestyle Creator, POV-Stil')"
-          className="w-full bg-jb-bg border border-jb-border rounded-lg px-3 py-2.5 text-sm text-jb-text placeholder:text-jb-text-muted focus:outline-none focus:border-jb-accent/50 transition-colors"
-        />
-        <Button
-          icon={<Plus size={14} />}
-          onClick={handleAdd}
-          loading={adding}
-          disabled={!username.trim()}
-          className="w-full"
-        >
+        <div className="grid grid-cols-2 gap-3">
+          <select
+            value={nicheRelevance}
+            onChange={(e) => setNicheRelevance(e.target.value)}
+            className="bg-jb-bg border border-jb-border rounded-lg px-3 py-2.5 text-sm text-jb-text focus:outline-none focus:border-jb-accent/50 transition-colors appearance-none"
+          >
+            {NICHE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <input
+            type="text"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Notizen (optional)"
+            className="bg-jb-bg border border-jb-border rounded-lg px-3 py-2.5 text-sm text-jb-text placeholder:text-jb-text-muted focus:outline-none focus:border-jb-accent/50 transition-colors"
+          />
+        </div>
+        {addError && <p className="text-xs text-jb-danger">{addError}</p>}
+        <Button icon={<Plus size={14} />} onClick={handleAdd} loading={adding} disabled={!username.trim()} className="w-full">
           Hinzufuegen
         </Button>
       </div>
@@ -129,8 +158,8 @@ export default function AccountsTab({ onScraped }: { onScraped?: () => void }) {
       {igInfo && (
         <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 space-y-3">
           <p className="text-sm text-jb-text leading-relaxed">
-            Instagram erlaubt kein automatisches Scraping fremder Accounts.
-            Oeffne das Profil, kopiere die Caption deines Lieblingsvideos und fuege sie in Tab "Link analysieren" ein.
+            Instagram und YouTube erlauben kein automatisches Scraping fremder Accounts.
+            Oeffne das Profil, kopiere die Caption deines Lieblingsvideos und fuege sie in Tab &ldquo;Link analysieren&rdquo; ein.
           </p>
           <div className="flex gap-2">
             <a
@@ -165,6 +194,9 @@ export default function AccountsTab({ onScraped }: { onScraped?: () => void }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-semibold text-jb-text">@{account.username}</p>
                   <Badge color={getPlatformBadgeColor(account.platform)}>{account.platform}</Badge>
+                  {account.niche_relevance && (
+                    <Badge color={getNicheBadgeColor(account.niche_relevance)}>{account.niche_relevance}</Badge>
+                  )}
                 </div>
                 {account.notes && <p className="text-xs text-jb-text-secondary mt-0.5">{account.notes}</p>}
                 <p className="text-[10px] text-jb-text-muted mt-1">
@@ -182,7 +214,7 @@ export default function AccountsTab({ onScraped }: { onScraped?: () => void }) {
                   onClick={() => handleScrape(account)}
                   loading={scraping === account.id}
                 >
-                  Analysieren
+                  Content analysieren
                 </Button>
                 <button
                   onClick={() => handleDelete(account.id)}
