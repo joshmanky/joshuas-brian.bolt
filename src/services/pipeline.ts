@@ -1,5 +1,5 @@
 // Pipeline service: CRUD for Kanban pipeline cards in Supabase
-// Updated: createCard accepts media_id; added getTopPerformingCards, getRecentPublished
+// Updated: added getWeeklyPerformanceStats for Command Center performance section
 import { supabase } from '../lib/supabase';
 import type { PipelineCard, PipelineStatus } from '../types';
 
@@ -104,4 +104,53 @@ export async function getRecentPublished(limit: number = 20): Promise<PipelineCa
     .order('updated_at', { ascending: false })
     .limit(limit);
   return (data || []) as PipelineCard[];
+}
+
+export interface WeeklyStats {
+  avgLikes: number;
+  bestPost: PipelineCard | null;
+  worstPost: PipelineCard | null;
+  trendBetter: boolean | null;
+  thisWeekCount: number;
+  lastWeekAvgLikes: number;
+}
+
+export async function getWeeklyPerformanceStats(): Promise<WeeklyStats> {
+  const now = new Date();
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + 1).toISOString();
+  const lastWeekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() - 6).toISOString();
+
+  const { data: thisWeek } = await supabase
+    .from('pipeline_cards')
+    .select('*')
+    .eq('status', 'published')
+    .not('likes_48h', 'is', null)
+    .gte('updated_at', weekStart)
+    .order('likes_48h', { ascending: false });
+
+  const { data: lastWeek } = await supabase
+    .from('pipeline_cards')
+    .select('likes_48h')
+    .eq('status', 'published')
+    .not('likes_48h', 'is', null)
+    .gte('updated_at', lastWeekStart)
+    .lt('updated_at', weekStart);
+
+  const cards = (thisWeek || []) as PipelineCard[];
+  const withPerf = cards.filter((c) => c.likes_48h > 0);
+  const avgLikes = withPerf.length > 0
+    ? Math.round(withPerf.reduce((s, c) => s + c.likes_48h, 0) / withPerf.length)
+    : 0;
+
+  const bestPost = withPerf.length > 0 ? withPerf[0] : null;
+  const worstPost = withPerf.length > 1 ? withPerf[withPerf.length - 1] : null;
+
+  const lastWeekCards = (lastWeek || []).filter((c) => (c.likes_48h || 0) > 0);
+  const lastWeekAvgLikes = lastWeekCards.length > 0
+    ? Math.round(lastWeekCards.reduce((s, c) => s + (c.likes_48h || 0), 0) / lastWeekCards.length)
+    : 0;
+
+  const trendBetter = lastWeekAvgLikes > 0 ? avgLikes > lastWeekAvgLikes : null;
+
+  return { avgLikes, bestPost, worstPost, trendBetter, thisWeekCount: withPerf.length, lastWeekAvgLikes };
 }

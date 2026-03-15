@@ -1,11 +1,13 @@
-// KanbanCard: draggable card with media thumbnail, caption preview, platform badge, score
-// Updated: shows media thumbnail, caption preview, scheduled date, performance score badge
+// KanbanCard: draggable card with performance badges, inline perf form for published cards
+// Updated: new badge thresholds (>20, 10-20, <10), inline performance form, comments_48h
+import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Sparkles, Trash2, Calendar } from 'lucide-react';
+import { GripVertical, Sparkles, Trash2, Calendar, Flame, TrendingUp, Minus, BarChart3 } from 'lucide-react';
 import Badge from '../ui/Badge';
 import { getPlatformColor } from '../../lib/utils';
 import { HOOK_TYPE_LABELS } from '../../types';
+import { updateCard } from '../../services/pipeline';
 import type { PipelineCard, HookType } from '../../types';
 
 interface KanbanCardProps {
@@ -14,16 +16,24 @@ interface KanbanCardProps {
   onGenerateScript: (card: PipelineCard) => void;
   onDelete: (id: string) => void;
   onClick: (card: PipelineCard) => void;
+  onUpdated?: () => void;
 }
 
-function getScoreBadge(likes: number) {
-  if (likes > 10) return { color: 'bg-jb-success/10 text-jb-success', label: 'Top' };
-  if (likes >= 5) return { color: 'bg-jb-warning/10 text-jb-warning', label: 'OK' };
-  if (likes > 0) return { color: 'bg-jb-border text-jb-text-muted', label: `${likes}` };
-  return null;
+function getScoreBadge(likes: number | undefined) {
+  if (!likes || likes === 0) return null;
+  if (likes > 20) return { color: 'bg-jb-success/10 text-jb-success', icon: Flame, label: 'Fire' };
+  if (likes >= 10) return { color: 'bg-jb-warning/10 text-jb-warning', icon: TrendingUp, label: 'Trend' };
+  return { color: 'bg-jb-border text-jb-text-muted', icon: Minus, label: `${likes}` };
 }
 
-export default function KanbanCard({ card, mediaThumbnail, onGenerateScript, onDelete, onClick }: KanbanCardProps) {
+export default function KanbanCard({ card, mediaThumbnail, onGenerateScript, onDelete, onClick, onUpdated }: KanbanCardProps) {
+  const [showPerfForm, setShowPerfForm] = useState(false);
+  const [perfViews, setPerfViews] = useState(String(card.views_48h || ''));
+  const [perfLikes, setPerfLikes] = useState(String(card.likes_48h || ''));
+  const [perfComments, setPerfComments] = useState(String(card.comments_48h || ''));
+  const [perfWatchtime, setPerfWatchtime] = useState(String(card.watchtime_score || ''));
+  const [perfSaving, setPerfSaving] = useState(false);
+
   const {
     attributes,
     listeners,
@@ -41,7 +51,23 @@ export default function KanbanCard({ card, mediaThumbnail, onGenerateScript, onD
 
   const platformLabel = card.platform === 'instagram' ? 'IG' : card.platform === 'tiktok' ? 'TT' : 'YT';
   const hookLabel = HOOK_TYPE_LABELS[card.hook_type as HookType] || card.hook_type;
-  const scoreBadge = getScoreBadge(card.likes_48h || 0);
+  const scoreBadge = getScoreBadge(card.likes_48h);
+  const isPublished = card.status === 'published';
+  const hasPerf = (card.likes_48h || 0) > 0;
+
+  async function handleSavePerf(e: React.MouseEvent) {
+    e.stopPropagation();
+    setPerfSaving(true);
+    await updateCard(card.id, {
+      views_48h: parseInt(perfViews) || 0,
+      likes_48h: parseInt(perfLikes) || 0,
+      comments_48h: parseInt(perfComments) || 0,
+      watchtime_score: parseInt(perfWatchtime) || 0,
+    });
+    setPerfSaving(false);
+    setShowPerfForm(false);
+    onUpdated?.();
+  }
 
   return (
     <div
@@ -74,7 +100,12 @@ export default function KanbanCard({ card, mediaThumbnail, onGenerateScript, onD
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
             <Badge color={`${getPlatformColor(card.platform)} text-white`}>{platformLabel}</Badge>
             <Badge>{hookLabel}</Badge>
-            {scoreBadge && <Badge color={scoreBadge.color}>{scoreBadge.label}</Badge>}
+            {scoreBadge && (
+              <Badge color={scoreBadge.color}>
+                <scoreBadge.icon size={10} className="mr-0.5" />
+                {scoreBadge.label}
+              </Badge>
+            )}
           </div>
           {card.scheduled_date && (
             <div className="flex items-center gap-1 mt-1.5 text-[10px] text-jb-text-muted">
@@ -84,6 +115,45 @@ export default function KanbanCard({ card, mediaThumbnail, onGenerateScript, onD
           )}
         </div>
       </div>
+
+      {isPublished && !hasPerf && !showPerfForm && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setShowPerfForm(true); }}
+          className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-jb-accent/5 border border-jb-accent/20 text-[10px] font-medium text-jb-accent hover:bg-jb-accent/10 transition-colors"
+        >
+          <BarChart3 size={10} /> Performance eintragen
+        </button>
+      )}
+
+      {showPerfForm && (
+        <div
+          className="mt-2 p-2.5 bg-jb-card border border-jb-accent/20 rounded-lg space-y-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="grid grid-cols-2 gap-1.5">
+            <PerfInput label="Views" value={perfViews} onChange={setPerfViews} />
+            <PerfInput label="Likes" value={perfLikes} onChange={setPerfLikes} />
+            <PerfInput label="Kommentare" value={perfComments} onChange={setPerfComments} />
+            <PerfInput label="Watchtime (1-10)" value={perfWatchtime} onChange={setPerfWatchtime} />
+          </div>
+          <div className="flex gap-1.5">
+            <button
+              onClick={handleSavePerf}
+              disabled={perfSaving}
+              className="flex-1 py-1.5 rounded-lg bg-jb-accent text-jb-bg text-[10px] font-medium hover:bg-jb-accent-dim transition-colors disabled:opacity-50"
+            >
+              {perfSaving ? 'Speichern...' : 'Speichern'}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowPerfForm(false); }}
+              className="py-1.5 px-2.5 rounded-lg border border-jb-border text-[10px] text-jb-text-muted hover:text-jb-text transition-colors"
+            >
+              X
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-jb-border/50 opacity-0 group-hover:opacity-100 transition-opacity">
         {card.status === 'idee' && !card.script_content && (
           <button
@@ -104,6 +174,21 @@ export default function KanbanCard({ card, mediaThumbnail, onGenerateScript, onD
           <Trash2 size={12} />
         </button>
       </div>
+    </div>
+  );
+}
+
+function PerfInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[9px] text-jb-text-muted mb-0.5">{label}</label>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        min="0"
+        className="w-full bg-jb-bg border border-jb-border rounded px-2 py-1 text-[11px] text-jb-text focus:outline-none focus:border-jb-accent/50 transition-colors"
+      />
     </div>
   );
 }

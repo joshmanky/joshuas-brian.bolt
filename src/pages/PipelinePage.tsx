@@ -1,5 +1,5 @@
 // PipelinePage: Kanban board with drag-and-drop, media thumbnails, published auto-log
-// Updated: loads media thumbnails for cards, passes to KanbanColumn
+// Updated: passes onUpdated to KanbanColumn for inline performance form refresh
 import { useState, useEffect, useCallback } from 'react';
 import { DndContext, DragOverlay, closestCorners, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
@@ -176,6 +176,7 @@ export default function PipelinePage() {
                 onGenerateScript={handleGenerateScript}
                 onDelete={handleDelete}
                 onCardClick={setDetailCard}
+                onUpdated={loadCards}
               />
             ))}
           </div>

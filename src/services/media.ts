@@ -1,5 +1,5 @@
 // Media service: CRUD for media_library + TUS resumable upload + AI Vision analysis
-// Updated: switched to tus-js-client for chunked resumable uploads with progress tracking
+// Updated: video matching now performance-aware, uses top hook type from pipeline_cards
 import { supabase } from '../lib/supabase';
 import { callClaude, logAiTask, CLAUDE_MODELS } from './claude';
 import { extractVideoFrames, imageFileToBase64 } from '../utils/videoFrameExtractor';
@@ -98,15 +98,23 @@ export async function uploadAndAnalyzeMedia(
 
   const ext = file.name.split('.').pop() || '';
   const filePath = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${file.name}`;
-  const isVideo = ['mp4', 'mov', 'webm'].includes(ext.toLowerCase());
+  const isVideo = ['mp4', 'mov', 'webm', 'quicktime'].includes(ext.toLowerCase()) || file.type.startsWith('video/');
   const fileType = isVideo ? 'video' : 'image';
 
-  await uploadFileResumable({
-    bucketName: 'media',
-    filePath,
-    file,
-    onProgress,
-  });
+  try {
+    await uploadFileResumable({
+      bucketName: 'media',
+      filePath,
+      file,
+      onProgress,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('413') || msg.toLowerCase().includes('maximum size')) {
+      throw new Error(`Datei zu gross fuer Upload (${(file.size / 1024 / 1024).toFixed(0)} MB). Maximale Dateigroesse des Supabase-Plans pruefen.`);
+    }
+    throw new Error(`Upload fehlgeschlagen: ${msg}`);
+  }
 
   const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/media/${filePath}`;
 
@@ -236,7 +244,29 @@ export async function matchVideoToScript(
     ai_description: m.ai_description,
   }));
 
-  const systemPrompt = 'Du matchst Videos zu Content-Skripten fuer Joshua (DreamChasers). Waehle das am besten passende Video.';
+  let perfHint = '';
+  try {
+    const { data: bestCards } = await supabase
+      .from('pipeline_cards')
+      .select('hook_type, likes_48h')
+      .eq('status', 'published')
+      .gt('likes_48h', 0)
+      .order('likes_48h', { ascending: false })
+      .limit(3);
+    if (bestCards && bestCards.length > 0) {
+      const topHook = bestCards[0].hook_type;
+      const hookNames: Record<string, string> = {
+        kontrast_hook: 'Kontrast-Hook (direkte Konfrontation, Gegenueberstellung)',
+        identitaets_hook: 'Identitaets-Hook (persoenliche Story)',
+        frage_hook: 'Frage-Hook (provokante Frage)',
+        zahlen_hook: 'Zahlen-Hook (Statistiken)',
+        statement_hook: 'Statement-Hook (starke Aussage)',
+      };
+      perfHint = ` ${hookNames[topHook] || topHook} performt am besten. Waehle ein Video das zu diesem Stil passt.`;
+    }
+  } catch {}
+
+  const systemPrompt = `Du matchst Videos zu Content-Skripten fuer Joshua (DreamChasers). Waehle das am besten passende Video.${perfHint}`;
   const userMsg = `Skript Hook: ${scriptHook}. Plattform: ${platform}. Verfuegbare Videos: ${JSON.stringify(mediaJson)}. Antworte NUR mit JSON: {"matched_id": "uuid", "reason": "kurze Begruendung"}`;
 
   try {

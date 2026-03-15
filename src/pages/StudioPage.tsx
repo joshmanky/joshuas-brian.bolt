@@ -1,16 +1,19 @@
 // StudioPage: Content Studio — vertical 3-step flow (Idee -> Skript -> Caption -> Pipeline)
-// Updated: added video matching, brain context support, removed old Canva design button
+// Updated: shows CEO NAECHSTER_POST recommendation banner in Step 1
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Sparkles, Zap, Film, Brain } from 'lucide-react';
+import { Sparkles, Zap, Film, Brain, Target } from 'lucide-react';
 import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
 import StudioIdeaStep from '../components/studio/StudioIdeaStep';
 import StudioScriptStep from '../components/studio/StudioScriptStep';
 import StudioCaptionStep from '../components/studio/StudioCaptionStep';
 import LightbulbTab from '../components/studio/LightbulbTab';
 import BrollTab from '../components/studio/BrollTab';
 import { createCard } from '../services/pipeline';
-import type { ResearchItem } from '../types';
+import { loadCachedCeoAnalysis, type NextPostRecommendation } from '../services/ceoAgent';
+import { HOOK_TYPE_LABELS } from '../types';
+import type { ResearchItem, HookType } from '../types';
 
 const BRAIN_CONTEXT_KEY = 'jb_brain_context';
 
@@ -34,6 +37,7 @@ export default function StudioPage() {
   const [showLightbulb, setShowLightbulb] = useState(initialTab === 'lightbulb');
   const [showBroll, setShowBroll] = useState(initialTab === 'broll');
   const [brainContext, setBrainContext] = useState('');
+  const [ceoRec, setCeoRec] = useState<NextPostRecommendation | null>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(BRAIN_CONTEXT_KEY);
@@ -41,6 +45,11 @@ export default function StudioPage() {
       setBrainContext(stored);
       sessionStorage.removeItem(BRAIN_CONTEXT_KEY);
     }
+    loadCachedCeoAnalysis().then((analysis) => {
+      if (analysis?.nextPostRecommendation) {
+        setCeoRec(analysis.nextPostRecommendation);
+      }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -139,6 +148,40 @@ export default function StudioPage() {
       )}
 
       <div className="max-w-3xl mx-auto space-y-3">
+        {ceoRec && !selectedIdea && (
+          <div className="bg-jb-success/5 border border-jb-success/20 rounded-xl px-5 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Target size={16} className="text-jb-success flex-shrink-0" />
+              <p className="text-sm text-jb-text truncate">
+                <span className="font-medium">CEO empfiehlt:</span>{' '}
+                {HOOK_TYPE_LABELS[ceoRec.hook_type as HookType] || ceoRec.hook_type} auf{' '}
+                {ceoRec.platform} zum Thema &quot;{ceoRec.thema}&quot;
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setHookType(ceoRec.hook_type);
+                setPlatform(ceoRec.platform);
+                const idea: ResearchItem = {
+                  id: `ceo-${Date.now()}`,
+                  title: ceoRec.thema,
+                  hook_type: ceoRec.hook_type,
+                  platform: ceoRec.platform as 'instagram' | 'tiktok' | 'youtube',
+                  status: 'new',
+                  created_at: new Date().toISOString(),
+                };
+                handleSelectIdea(idea);
+                setCeoRec(null);
+              }}
+              className="flex-shrink-0"
+            >
+              Verwenden
+            </Button>
+          </div>
+        )}
+
         <StudioIdeaStep
           isOpen={openStep === 1}
           onToggle={() => setOpenStep(openStep === 1 ? 0 : 1)}

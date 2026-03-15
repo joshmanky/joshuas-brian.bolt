@@ -1,5 +1,5 @@
 // MediaGrid: responsive grid for media_library with batch selection + inline AI descriptions
-// Updated: batch select mode, checkbox overlay, visual improvements, scene badges
+// Updated: video thumbnail fallback using HTML video element with currentTime=1
 import { useState } from 'react';
 import { Trash2, Film, Check, Clock, User, MessageSquare } from 'lucide-react';
 import Badge from '../ui/Badge';
@@ -153,6 +153,14 @@ export default function MediaGrid({
                 <img src={item.file_url} alt={item.filename} className="w-full h-full object-cover" />
               ) : item.thumbnail_url ? (
                 <img src={item.thumbnail_url} alt={item.filename} className="w-full h-full object-cover" />
+              ) : !isImage && item.file_url ? (
+                <video
+                  src={item.file_url}
+                  className="w-full h-full object-cover"
+                  muted
+                  preload="metadata"
+                  onLoadedData={(e) => { (e.target as HTMLVideoElement).currentTime = 1; }}
+                />
               ) : (
                 <Film size={28} className="text-jb-text-muted opacity-40" />
               )}

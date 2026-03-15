@@ -38,17 +38,24 @@ export async function callClaude(
   return json.text;
 }
 
+export function cleanSummary(text: string): string {
+  return text
+    .replace(/```json/g, '')
+    .replace(/```/g, '')
+    .trim()
+    .substring(0, 150);
+}
+
 export async function logAiTask(
   agentName: string,
   taskType: string,
   result: string
 ): Promise<void> {
   try {
-    const clean = result.replace(/```json/g, '').replace(/```/g, '').trim();
     await supabase.from('ai_tasks_log').insert({
       agent_name: agentName,
       task_type: taskType,
-      output_summary: clean.slice(0, 100),
+      output_summary: cleanSummary(result),
       status: 'completed',
     });
   } catch {

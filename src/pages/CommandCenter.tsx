@@ -1,5 +1,5 @@
 // CommandCenter: CEO Insight + Heute-Cockpit + Performance + Live Feed + Attribution + Quick Actions
-// Updated: added "Performance dieser Woche" section with top performing cards
+// Updated: replaced inline performance section with WeeklyPerformanceSection component
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -10,6 +10,7 @@ import StatCard from '../components/ui/StatCard';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Select from '../components/ui/Select';
+import WeeklyPerformanceSection from '../components/command/WeeklyPerformanceSection';
 import { supabase } from '../lib/supabase';
 import { runCeoAnalysis, loadCachedCeoAnalysis, type CeoAnalysis } from '../services/ceoAgent';
 import { createAttribution } from '../services/attribution';
@@ -253,37 +254,7 @@ export default function CommandCenter() {
             )}
           </div>
 
-          {topCards.length > 0 && (
-            <div className="bg-jb-card border border-jb-accent/20 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-jb-text flex items-center gap-2 mb-3">
-                <TrendingUp size={14} className="text-jb-accent" /> Performance dieser Woche
-              </h3>
-              <div className="space-y-2">
-                {topCards.map((card, i) => {
-                  const platLabel = card.platform === 'instagram' ? 'IG' : card.platform === 'tiktok' ? 'TT' : 'YT';
-                  return (
-                    <div key={card.id} className="flex items-center gap-3 p-2.5 bg-jb-bg rounded-lg">
-                      <span className="text-xs font-bold text-jb-text-muted w-5">#{i + 1}</span>
-                      <div className={`w-2 h-2 rounded-full ${getPlatformColor(card.platform)}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-jb-text truncate">{card.title}</p>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-jb-text-secondary">
-                        <Heart size={10} className="text-jb-danger" />
-                        <span className="stat-number">{card.likes_48h || 0}</span>
-                      </div>
-                      <Badge color={`${getPlatformColor(card.platform)} text-white`}>{platLabel}</Badge>
-                    </div>
-                  );
-                })}
-              </div>
-              {ceoAnalysis && ceoAnalysis.contentPriorities.length > 0 && (
-                <div className="mt-3 bg-jb-success/5 border border-jb-success/20 rounded-lg p-3">
-                  <p className="text-xs text-jb-success font-medium">CEO Empfehlung: {ceoAnalysis.contentPriorities[0]}</p>
-                </div>
-              )}
-            </div>
-          )}
+          <WeeklyPerformanceSection />
 
           <div className="bg-jb-card border border-jb-border rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">

@@ -91,6 +91,7 @@ export interface PipelineCard {
   media_id: string | null;
   views_48h: number;
   likes_48h: number;
+  comments_48h: number;
   watchtime_score: number;
   position: number;
   created_at: string;

@@ -1,14 +1,21 @@
-// CEO Agent service: analyses all performance data and optimizes agent prompts
-// Updated: loads last 20 published pipeline cards with performance data, includes top/bottom 3 by likes
+// CEO Agent service: analyses performance data, optimizes agents, gives NAECHSTER_POST recommendation
+// Updated: added nextPostRecommendation to CeoAnalysis, updated prompt for optimization loop
 import { supabase } from '../lib/supabase';
-import { callClaude, logAiTask, CLAUDE_MODELS } from './claude';
+import { callClaude, logAiTask, cleanSummary, CLAUDE_MODELS } from './claude';
 import { AGENT_REGISTRY } from './agents';
 import { getRecentPublished } from './pipeline';
+
+export interface NextPostRecommendation {
+  hook_type: string;
+  platform: string;
+  thema: string;
+}
 
 export interface CeoAnalysis {
   performanceSummary: string;
   agentOptimizations: AgentOptimization[];
   contentPriorities: string[];
+  nextPostRecommendation?: NextPostRecommendation;
   generatedAt: string;
 }
 
@@ -28,10 +35,23 @@ export async function loadCachedCeoAnalysis(): Promise<CeoAnalysis | null> {
 
   if (!data) return null;
 
+  const opts = (data.agent_optimizations || []) as AgentOptimization[];
+  const priorities = (data.content_priorities || []) as string[];
+
+  let nextPost: NextPostRecommendation | undefined;
+  const lastPriority = priorities.find((p) => p.startsWith('NAECHSTER_POST:'));
+  if (lastPriority) {
+    try {
+      const json = lastPriority.replace('NAECHSTER_POST:', '').trim();
+      nextPost = JSON.parse(json);
+    } catch {}
+  }
+
   return {
     performanceSummary: data.performance_summary,
-    agentOptimizations: (data.agent_optimizations || []) as AgentOptimization[],
-    contentPriorities: (data.content_priorities || []) as string[],
+    agentOptimizations: opts,
+    contentPriorities: priorities.filter((p) => !p.startsWith('NAECHSTER_POST:')),
+    nextPostRecommendation: nextPost,
     generatedAt: data.created_at,
   };
 }
@@ -90,9 +110,25 @@ export async function runCeoAnalysis(model: string = CLAUDE_MODELS.SONNET): Prom
     .map(([ht, s]) => `${ht}: ${s.count}x, Avg Likes: ${Math.round(s.totalLikes / s.count)}`)
     .join('\n');
 
+  const perfJson = publishedCards
+    .filter((c) => c.likes_48h > 0)
+    .map((c) => ({ hook_type: c.hook_type, platform: c.platform, likes_48h: c.likes_48h, views_48h: c.views_48h, watchtime_score: c.watchtime_score }));
+
   const agentNames = AGENT_REGISTRY.map(a => a.name).join(', ');
 
-  const CEO_SYSTEM_PROMPT = `Du bist der CEO Agent fuer Joshua Tischer (@joshmanky). Nische: H.I.S.-Methode, Anti-Guru Blockadenloesung fuer 20-30-Jaehrige, DreamChasers Industry. Analysiere Performance-Daten inkl. Pipeline-Performance (Views, Likes, Watchtime, Hook-Typen), optimiere Agents (${agentNames}) und setze Content-Prioritaeten. Gib eine konkrete Empfehlung welcher Hook-Typ und welche Plattform am besten performt. Antworte NUR als JSON: {"performanceSummary":"...","agentOptimizations":[{"agentName":"...","reason":"...","suggestedPromptUpdate":"..."}],"contentPriorities":["...","...","..."]}`;
+  const CEO_SYSTEM_PROMPT = `Du bist der CEO Agent fuer Joshua Tischer (@joshmanky). Nische: H.I.S.-Methode, Anti-Guru Blockadenloesung fuer 20-30-Jaehrige, DreamChasers Industry.
+
+Analysiere Performance-Daten inkl. Pipeline-Performance (Views, Likes, Watchtime, Hook-Typen), optimiere Agents (${agentNames}) und setze Content-Prioritaeten.
+
+Analysiere welche Hook-Typen auf welchen Plattformen die beste Performance zeigen.
+
+Aktuelle Post-Performance: ${JSON.stringify(perfJson)}
+
+Gib am Ende deiner Analyse eine konkrete Empfehlung als letztes Element in contentPriorities:
+"NAECHSTER_POST:{"hook_type":"...","platform":"instagram|tiktok|youtube","thema":"konkretes Thema"}"
+
+Antworte NUR als JSON:
+{"performanceSummary":"...","agentOptimizations":[{"agentName":"...","reason":"...","suggestedPromptUpdate":"..."}],"contentPriorities":["...","...","NAECHSTER_POST:{...}"]}`;
 
   const userMessage = `TOP INSTAGRAM POSTS:\n${igContext || 'Keine Daten'}\n\nTOP TIKTOK VIDEOS:\n${ttContext || 'Keine Daten'}\n\nTOP YOUTUBE VIDEOS:\n${ytContext || 'Keine Daten'}\n\nPIPELINE TOP 3 (nach Likes48h):\n${pipelineTopContext}\n\nPIPELINE BOTTOM 3 (nach Likes48h):\n${pipelineBottomContext}\n\nHOOK-TYP ANALYSE:\n${hookAnalysis || 'Keine Daten'}\n\nREZENTE AI TASKS:\n${taskContext || 'Keine Logs'}`;
 
@@ -105,17 +141,27 @@ export async function runCeoAnalysis(model: string = CLAUDE_MODELS.SONNET): Prom
     const parsed = JSON.parse(jsonMatch[0]) as CeoAnalysis;
     parsed.generatedAt = new Date().toISOString();
 
+    const priorities = parsed.contentPriorities || [];
+    const nextPostEntry = priorities.find((p) => p.startsWith('NAECHSTER_POST:'));
+    if (nextPostEntry) {
+      try {
+        const json = nextPostEntry.replace('NAECHSTER_POST:', '').trim();
+        parsed.nextPostRecommendation = JSON.parse(json);
+      } catch {}
+      parsed.contentPriorities = priorities.filter((p) => !p.startsWith('NAECHSTER_POST:'));
+    }
+
     await Promise.all([
       supabase.from('ai_tasks_log').insert({
         agent_name: 'CEO Agent',
         task_type: 'full_system_optimization',
-        output_summary: parsed.performanceSummary.slice(0, 100),
+        output_summary: cleanSummary(parsed.performanceSummary),
         status: 'completed',
       }),
       supabase.from('ceo_analysis_cache').insert({
         performance_summary: parsed.performanceSummary,
         agent_optimizations: parsed.agentOptimizations,
-        content_priorities: parsed.contentPriorities,
+        content_priorities: [...(parsed.contentPriorities || []), ...(nextPostEntry ? [nextPostEntry] : [])],
         source: 'manual',
         model_used: model,
       }),
